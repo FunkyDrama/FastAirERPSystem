@@ -1,0 +1,145 @@
+@startuml FastAir
+title FastAir ERP-System
+
+package "db.models" {
+    class UserAccount {
+        +user_id: UUID
+        +email: str
+        +password: str
+        +role: Role
+        +balance: Decimal
+    }
+
+    class Passenger {
+        +passenger_id: UUID
+        +name: str
+        +contact_info: str
+    }
+
+    class Booking {
+        +booking_id: UUID
+        +booking_date: datetime
+        +total_amount: Decimal
+        +status: BookingStatus
+    }
+
+    class Ticket {
+        +ticket_number: str
+        +seat_number: str
+        +status: TicketStatus
+        +price: Decimal
+    }
+
+    class Flight {
+        +flight_id: UUID
+        +flight_number: str
+        +origin: str
+        +destination: str
+        +departureTime: datetime
+        +arrivalTime: datetime
+        +status: FlightStatus
+    }
+
+    class Airplane {
+        +airplane_id: UUID
+        +model: str
+        +total_seats: int
+    }
+
+    class SeatType {
+        +type_name: str
+        +description: str
+    }
+
+    class Option {
+        +option_id: UUID
+        +name: str
+        +price: Decimal
+    }
+
+    class Discount {
+        +discount_code: str
+        +description: str
+        +percent_off: int
+    }
+
+    enum Role {
+        CUSTOMER
+        GATE_MANAGER
+        CHECKIN_MANAGER
+        SUPERVISOR
+    }
+
+    enum BookingStatus {
+        RESERVED
+        PAID
+        CANCELED
+    }
+
+    enum TicketStatus {
+        BOOKED
+        CHECKED_IN
+        BOARDED
+        CANCELED
+    }
+
+    enum FlightStatus {
+        SCHEDULED
+        CANCELED
+        COMPLETED
+    }
+}
+
+package "repositories" {
+    class UserRepository
+    class FlightRepository
+    class BookingRepository
+    class TicketRepository
+}
+
+package "services" {
+    class AuthService
+    class FlightService
+    class BookingService
+    class CheckinService
+    class BoardingService
+    class AdminService
+    class NotificationService
+    class PaymentService
+}
+
+package "api.v1" {
+    class AuthRouter
+    class FlightRouter
+    class BookingRouter
+    class TicketRouter
+    class MeRouter
+    class StaffCheckinRouter
+    class StaffBoardingRouter
+    class AdminRouter
+    class PaymentRouter
+    class WebhookRouter
+    class WebSocketRouter
+}
+
+package "tasks" {
+    class EmailTasks
+    class WebhookTasks
+    class ReportTasks
+}
+
+UserAccount "1" --> "0..*" Booking : makes
+Booking "1" *-- "0..*" Ticket : includes
+Flight "1" -- "0..*" Ticket : has
+Passenger "1" -- "0..*" Ticket : owns
+SeatType "1" -- "0..*" Ticket : type
+Ticket "0..*" -- "0..*" Option : selects
+Booking "0..1" --> "*" Discount : uses
+Airplane "1" -- "0..*" Flight : serves
+
+repositories.UserRepository --> db.models.UserAccount
+services.AuthService --> repositories.UserRepository
+api.v1.AuthRouter --> services.AuthService
+tasks.EmailTasks --> services.NotificationService
+
+@enduml

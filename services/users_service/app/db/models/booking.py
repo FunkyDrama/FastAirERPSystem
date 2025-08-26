@@ -58,7 +58,7 @@ class Booking(Base):
         default=uuid.uuid4,
         primary_key=True,
     )
-    booking_date: Mapped = mapped_column(
+    booking_date: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,

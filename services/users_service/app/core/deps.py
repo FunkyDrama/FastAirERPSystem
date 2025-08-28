@@ -10,6 +10,7 @@ from services.users_service.app.core.token_store import TokenStore
 from services.users_service.app.db.models.user import UserAccount
 from services.users_service.app.repositories.user_repo import UserRepository
 from services.users_service.app.services.auth import AuthService
+from services.users_service.app.services.flights import FlightQueryService
 
 
 def get_token_store(request: Request) -> TokenStore:
@@ -32,7 +33,9 @@ def get_sessionmaker(request: Request) -> async_sessionmaker[AsyncSession]:
     try:
         return cast(async_sessionmaker[AsyncSession], request.app.state.sessionmaker)
     except AttributeError as e:
-        raise RuntimeError("Sessionmaker is not in app.state. Check lifespan init.") from e
+        raise RuntimeError(
+            "Sessionmaker is not in app.state. Check lifespan init."
+        ) from e
 
 
 async def get_session(request: Request) -> AsyncGenerator[AsyncSession, None]:
@@ -94,3 +97,20 @@ async def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="Invalid token")
     return user
+
+
+def get_flight_service(
+    session: AsyncSession = Depends(get_session),
+) -> FlightQueryService:
+    """
+    Creates and returns an instance of the FlightQueryService.
+
+    The service utilizes the provided database session to perform flight-related
+    queries and operations.
+
+    :param session: The asynchronous session instance for interacting with the
+        database.
+    :return: An initialized FlightQueryService instance.
+    :rtype: FlightQueryService
+    """
+    return FlightQueryService(session)

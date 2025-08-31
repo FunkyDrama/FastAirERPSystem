@@ -53,6 +53,38 @@ class RedisSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
 
 
-redis_settings = RedisSettings()
+class StripeSettings(BaseSettings):
+    """
+    Handles configuration for Stripe API integration.
 
+    This class encapsulates all the necessary settings required for communicating
+    with the Stripe API. It is designed to handle sensitive information such as
+    keys and secrets, and loads configuration from environment variables or an
+    environment file. The primary purpose of this class is to provide a structured
+    and secure way to manage Stripe-related settings within the application.
+
+    :ivar STRIPE_PUBLISHABLE_KEY: The publishable key provided by Stripe for
+        identifying the merchant's account publicly.
+    :type STRIPE_PUBLISHABLE_KEY: str
+    :ivar STRIPE_SECRET_KEY: The secret key provided by Stripe for server-side
+        authentication and operations.
+    :type STRIPE_SECRET_KEY: SecretStr
+    :ivar STRIPE_WEBHOOK_SECRET: The secret used by Stripe to verify webhook
+        payloads sent to your server.
+    :type STRIPE_WEBHOOK_SECRET: SecretStr
+    :ivar STRIPE_API_VERSION: Specifies the version of Stripe's API this application
+        is intended to use. Defaults to "2022-08-01".
+    :type STRIPE_API_VERSION: str
+    """
+
+    STRIPE_PUBLISHABLE_KEY: str
+    STRIPE_SECRET_KEY: SecretStr
+    STRIPE_WEBHOOK_SECRET: SecretStr
+    STRIPE_API_VERSION: str = "2022-08-01"
+
+    model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
+
+
+stripe_settings = StripeSettings()
+redis_settings = RedisSettings()
 jwt_settings = Settings()

@@ -8,9 +8,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 from services.users_service.app.core.jwt import decode_token_or_raise
 from services.users_service.app.core.token_store import TokenStore
 from services.users_service.app.db.models.user import UserAccount
+from services.users_service.app.repositories.booking_repo import BookingRepository
 from services.users_service.app.repositories.user_repo import UserRepository
 from services.users_service.app.services.auth import AuthService
+from services.users_service.app.services.booking import BookingService
 from services.users_service.app.services.flights import FlightQueryService
+from services.users_service.app.services.me import MeService
+from services.users_service.app.services.payment import PaymentService
 
 
 def get_token_store(request: Request) -> TokenStore:
@@ -114,3 +118,68 @@ def get_flight_service(
     :rtype: FlightQueryService
     """
     return FlightQueryService(session)
+
+
+def get_booking_service(
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> BookingService:
+    """
+    Retrieve an instance of BookingService by providing required dependencies.
+
+    This factory function leverages dependency injection to create and return an
+    instance of the BookingService. The session parameter provides access to the
+    database session, while the user parameter represents the current authenticated
+    user.
+
+    :param session: The asynchronous database session used for interaction with the
+        database.
+    :type session: AsyncSession
+    :param user: The current authenticated user.
+    :type user: UserAccount
+    :return: An instance of BookingService with the provided session and user.
+    :rtype: BookingService
+    """
+    return BookingService(session=session, current_user=user)
+
+
+def get_me_service(
+    session: AsyncSession = Depends(get_session),
+    user: UserAccount = Depends(get_current_user),
+) -> MeService:
+    """
+    Creates and returns an instance of the MeService class.
+
+    This function is responsible for creating a new `MeService` object, which includes
+    the session and current user dependencies as its attributes. The session is used
+    to interact with the database, and the user object represents the currently
+    authenticated user.
+
+    :param session: The asynchronous database session used for data access.
+    :type session: AsyncSession
+    :param user: The currently authenticated user object.
+    :type user: UserAccount
+    :return: An instance of the `MeService` class initialized with the session and user.
+    :rtype: MeService
+    """
+    return MeService(session=session, current_user=user)
+
+
+def get_payment_service(
+    session: AsyncSession = Depends(get_session),
+    user=Depends(get_current_user),
+):
+    """
+    Provides an instance of the PaymentService class, which serves as the main
+    service for handling payment-related functionality. This function is designed
+    to inject the necessary dependencies, including the database session and the
+    current authenticated user.
+
+    :param session: An asynchronous database session instance, used for database
+        operations.
+    :param user: The currently authenticated user whose payment operations
+        will be processed.
+    :return: An instance of the PaymentService class, configured with the
+        necessary dependencies.
+    """
+    return PaymentService(BookingRepository(session), user)

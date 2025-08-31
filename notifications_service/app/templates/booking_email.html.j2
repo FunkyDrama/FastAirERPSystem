@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Your FastAir Ticket</title>
+</head>
+<body style="font-family: Arial, sans-serif; background: #f9f9f9; padding: 20px;">
+  <div style="max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 8px;">
+    <h2 style="color: #333;">Your Ticket is Confirmed 🎉</h2>
+
+    <p><strong>Booking ID:</strong> {{ booking_id }}</p>
+    <p><strong>Ticket Number:</strong> {{ ticket_number }}</p>
+
+    <p>Please show this QR code at check-in:</p>
+    <img src="cid:qrcode" alt="QR Code" style="margin-top: 10px;"/>
+
+    <hr style="margin: 20px 0;">
+    <p style="font-size: 12px; color: #666;">
+      Thank you for choosing <strong>FastAir</strong>.
+      We wish you a pleasant flight!
+    </p>
+  </div>
+</body>
+</html>

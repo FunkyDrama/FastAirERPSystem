@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir poetry \
  && poetry install --no-interaction --no-root
 
 COPY services/users_service /app/services/users_service
+COPY scripts /app/scripts
 
 RUN ipython profile create --profile=async && \
     mkdir -p /root/.ipython/profile_async/startup && \

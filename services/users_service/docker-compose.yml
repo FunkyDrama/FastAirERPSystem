@@ -1,8 +1,23 @@
 services:
   redis:
     image: redis:7-alpine
-    ports: [ "6379:6379" ]
-    profiles: [ "prod","dev","ci" ]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    profiles: ["prod","dev","ci"]
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    profiles: ["prod","dev","ci"]
 
   users_db:
     image: postgres:16-alpine
@@ -28,6 +43,8 @@ services:
       users_db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_started
     env_file: .env
     environment:
@@ -37,13 +54,11 @@ services:
       - ACCESS_TOKEN_TTL=${ACCESS_TOKEN_TTL}
       - REFRESH_TOKEN_TTL=${REFRESH_TOKEN_TTL}
     ports: ["8000:8000"]
-    volumes: []
     command: >
       sh -c "
         alembic -c services/users_service/app/alembic.ini upgrade head &&
         python -m services.users_service.app.main
       "
-
     profiles: ["prod"]
 
   users-dev:
@@ -55,6 +70,8 @@ services:
       users_db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_started
     env_file: .env
     environment:
@@ -66,52 +83,29 @@ services:
     ports: ["8001:8000"]
     volumes:
       - ../..:/app
-    command: sh -c "alembic -c services/users_service/app/alembic.ini upgrade head && uvicorn services.users_service.app.main:app --host 0.0.0.0 --port 8000 --reload"
+    command: >
+      sh -c "alembic -c services/users_service/app/alembic.ini upgrade head &&
+             uvicorn services.users_service.app.main:app --host 0.0.0.0 --port 8000 --reload"
     profiles: ["dev"]
 
-  users-shell:
+  notifications_service:
     build:
       context: ../..
-      dockerfile: services/users_service/Dockerfile
+      dockerfile: notifications_service/Dockerfile
     depends_on:
-      users_db:
-        condition: service_healthy
-      redis:
+      rabbitmq:
         condition: service_started
-    env_file: .env
+    env_file: ./../../notifications_service/.env
     environment:
       - PYTHONPATH=/app
-      - REDIS_URL=${REDIS_URL}
-      - REDIS_PREFIX=${REDIS_PREFIX}
-      - ACCESS_TOKEN_TTL=${ACCESS_TOKEN_TTL}
-      - REFRESH_TOKEN_TTL=${REFRESH_TOKEN_TTL}
-    volumes: ["./:/app"]
-    command: ipython --profile=async
-    stdin_open: true
-    tty: true
-    profiles: ["dev"]
-
-#  tests:
-#    build:
-#      context: ../..
-#      dockerfile: services/users_service/Dockerfile
-#    depends_on:
-#      db:
-#        condition: service_healthy
-#      redis:
-#        condition: service_started
-#    env_file: .env
-#    environment:
-#      - PYTHONPATH=/app
-#      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-#      - REDIS_URL=${REDIS_URL}
-#      - REDIS_PREFIX=${REDIS_PREFIX}
-#      - ACCESS_TOKEN_TTL=${ACCESS_TOKEN_TTL}
-#      - REFRESH_TOKEN_TTL=${REFRESH_TOKEN_TTL}
-#      - LOG_LEVEL=INFO
-#    volumes: ["./:/app"]
-#    command: sh -c "alembic upgrade head && pytest -q"
-#    profiles: ["dev","ci"]
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672//
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
+      - EMAIL_FROM=${EMAIL_FROM}
+    command: celery -A notifications_service.app.worker worker --loglevel=INFO -Q emails
+    profiles: [ "prod","dev" ]
 
 volumes:
   db_data:

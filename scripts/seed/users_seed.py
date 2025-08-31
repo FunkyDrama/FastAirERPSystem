@@ -13,6 +13,7 @@ from scripts.seed.common import (
     flight_number,
     rand_datetime_within_days,
 )
+from services.users_service.app.db.models.pricing import PricingConfig
 
 from services.users_service.app.db.models.seat_type import SeatType
 from services.users_service.app.db.models.option import Option
@@ -56,18 +57,44 @@ async def seed_seat_types(session: AsyncSession) -> None:
     :rtype: None
     """
     wanted = [
-        ("ECONOMY", "Standard economy seat"),
-        ("PREMIUM_ECONOMY", "Extra legroom"),
-        ("BUSINESS", "Business seat"),
+        ("ECONOMY", "Standard economy seat", Decimal("1.00")),
+        ("PREMIUM_ECONOMY", "Extra legroom", Decimal("1.20")),
+        ("BUSINESS", "Business seat", Decimal("2.00")),
     ]
-    existing: Sequence[str] = list(
-        (await session.execute(select(SeatType.type_name))).scalars().all()
-    )
-    to_add = [
-        SeatType(type_name=n, description=d) for n, d in wanted if n not in existing
-    ]
-    session.add_all(to_add)
+
+    existing = {
+        row.type_name: row
+        for row in (await session.execute(select(SeatType))).scalars().all()
+    }
+
+    for name, desc, mult in wanted:
+        st = existing.get(name)
+        if st:
+            st.description = desc
+            st.multiplier = mult
+        else:
+            session.add(SeatType(type_name=name, description=desc, multiplier=mult))
     await session.commit()
+
+
+async def seed_pricing_config(session: AsyncSession) -> None:
+    """
+    Seeds the database with a default pricing configuration if it does not already exist.
+    The function checks if a PricingConfig with a specific ID already exists in the
+    database. If no such configuration exists, it adds a new PricingConfig record
+    with predefined values. The changes are then committed to the database.
+
+    :param session: Database session used to execute queries
+    :type session: AsyncSession
+    :return: None
+    :rtype: None
+    """
+    cfg = (
+        await session.execute(select(PricingConfig).where(PricingConfig.id == 1))
+    ).scalar_one_or_none()
+    if not cfg:
+        session.add(PricingConfig(id=1, base_price=Decimal("120.00"), currency="USD"))
+        await session.commit()
 
 
 async def seed_options(session: AsyncSession) -> None:
@@ -214,6 +241,7 @@ async def seed_users_db(
         await seed_flights(
             session, flights_count=flights_count, days_window=days_window
         )
+        await seed_pricing_config(session)
         print(
             f"[users] seeded: seat_types, options, discounts, flights({flights_count})"
         )

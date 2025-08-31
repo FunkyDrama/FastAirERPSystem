@@ -93,5 +93,14 @@ async def ping(engine: AsyncEngine) -> None:
         await conn.execute(text("SELECT 1"))
 
 
-
-from .models import user, booking, discount, flight_ref, option, passenger, seat_type, ticket
+from .models import (
+    user,
+    booking,
+    discount,
+    flight_ref,
+    option,
+    passenger,
+    seat_type,
+    ticket,
+    pricing,
+)

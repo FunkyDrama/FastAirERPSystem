@@ -1,6 +1,7 @@
 import datetime as dt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from services.users_service.app.db.models.user import UserAccount
 from services.users_service.app.db.models.passenger import Passenger
@@ -48,6 +49,7 @@ class MeService:
             (
                 await self.session.execute(
                     select(Booking)
+                    .options(selectinload(Booking.tickets))
                     .where(Booking.user_id == self.user.user_id)
                     .order_by(Booking.booking_date.desc())
                 )

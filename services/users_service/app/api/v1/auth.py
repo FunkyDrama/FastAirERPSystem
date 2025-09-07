@@ -8,7 +8,6 @@ from fastapi import (
     Security,
 )
 from datetime import datetime, timezone
-
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from services.users_service.app.core.deps import get_auth_service, get_current_user
@@ -24,13 +23,6 @@ from services.users_service.app.schemas.auth import (
 from services.users_service.app.services.auth import AuthService
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
-
-
-REFRESH_COOKIE = "refresh_token"
-COOKIE_PATH = "/api/v1/auth"
-COOKIE_SAMESITE = "lax"
-COOKIE_SECURE = False
-COOKIE_HTTPONLY = True
 
 
 @router.post(
@@ -84,19 +76,7 @@ async def login(
     :rtype: TokenPair
     """
     result = await svc.login_user(user_data)
-    payload = decode_token_or_raise(result["refresh_token"])
-    exp = int(payload["exp"])
-    max_age = max(1, exp - int(datetime.now(timezone.utc).timestamp()))
-
-    response.set_cookie(
-        key=REFRESH_COOKIE,
-        value=result["refresh_token"],
-        max_age=max_age,
-        httponly=COOKIE_HTTPONLY,
-        secure=COOKIE_SECURE,
-        samesite=COOKIE_SAMESITE,
-        path=COOKIE_PATH,
-    )
+    await svc.set_cookie(response, result["refresh_token"])
     return TokenPair(
         access_token=result["access_token"],
         refresh_token="",
@@ -126,24 +106,16 @@ async def refresh_tokens(
     :rtype: TokenPair
     :raises HTTPException: If the refresh token cookie is missing or invalid.
     """
-    raw = request.cookies.get(REFRESH_COOKIE)
+    raw = request.cookies.get("refresh_token")
     if not raw:
         raise HTTPException(status_code=401, detail="Missing refresh cookie")
-    pair = await svc.refresh_tokens(raw)
 
-    payload = decode_token_or_raise(pair["refresh_token"])
-    exp = int(payload["exp"])
-    max_age = max(1, exp - int(datetime.now(timezone.utc).timestamp()))
+    try:
+        pair = await svc.refresh_tokens(raw)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
-    response.set_cookie(
-        key=REFRESH_COOKIE,
-        value=pair["refresh_token"],
-        max_age=max_age,
-        httponly=COOKIE_HTTPONLY,
-        secure=COOKIE_SECURE,
-        samesite=COOKIE_SAMESITE,
-        path=COOKIE_PATH,
-    )
+    await svc.set_cookie(response, pair["refresh_token"])
     return TokenPair(
         access_token=pair["access_token"],
         refresh_token="",
@@ -177,20 +149,14 @@ async def logout(
              status message or other relevant data.
     """
     access_token = creds.credentials if creds and creds.credentials else None
-    refresh_token = request.cookies.get(REFRESH_COOKIE)
+    refresh_token = request.cookies.get("refresh_token")
 
     result = await svc.logout_user(
         str(current_user.email),
         access_token=access_token,
         refresh_token=refresh_token,
     )
-    response.delete_cookie(
-        key=REFRESH_COOKIE,
-        path=COOKIE_PATH,
-        httponly=COOKIE_HTTPONLY,
-        secure=COOKIE_SECURE,
-        samesite=COOKIE_SAMESITE,
-    )
+    await svc.delete_cookie(response)
     return result
 
 
@@ -222,3 +188,37 @@ async def change_password(
     """
     result = await svc.change_password(str(current_user.email), password_data)
     return result
+
+
+@router.get("/google/url")
+async def google_url(svc: AuthService = Depends(get_auth_service)):
+    """Creates a URL for Google OAuth2 authentication.
+    This endpoint generates a URL that initiates the Google OAuth2 flow,
+    allowing users to authenticate using their Google accounts.
+
+    :param svc: The authentication service for generating the Google auth URL.
+        This is resolved using a dependency to inject the appropriate service.
+    :type svc: AuthService
+    :return: A dictionary containing the generated Google authentication URL.
+    :rtype: dict
+    """
+    return await svc.generate_google_auth_url()
+
+
+@router.get("/google/callback")
+async def google_callback(
+    code: str,
+    svc: AuthService = Depends(get_auth_service),
+):
+    """Handles the callback from Google OAuth2 after successful authentication.
+    This endpoint processes the callback received from Google after a user has a code after authenticated.
+
+    :param code: The code that Google sends after authentication.
+    :type: str,
+    :param: svc: The authentication service for handling Google auth code and responses for token resolving.
+        This is resolved using a dependency to inject the appropriate service.
+    :type svc: AuthService
+    :return: Returns redirecting response with tokens in cookie.
+    :rtype: RedirectResponse
+    """
+    return await svc.handle_google_auth_callback(code)

@@ -85,6 +85,30 @@ class StripeSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
 
 
+class GoogleAuthSettings(BaseSettings):
+    """
+    Handles settings configuration for Google OAuth2 authentication.
+
+    This class is used to define and manage Google OAuth2 authentication
+    settings. It extends from BaseSettings to utilize pydantic's
+    settings management capabilities.
+
+    :ivar GOOGLE_CLIENT_ID: The client ID provided by Google for OAuth2 authentication.
+    :type GOOGLE_CLIENT_ID: str
+    :ivar GOOGLE_CLIENT_SECRET: The client secret provided by Google for OAuth2 authentication.
+    :type GOOGLE_CLIENT_SECRET: SecretStr
+    :ivar GOOGLE_REDIRECT_URI: The redirect URI provided by Google for OAuth2 authentication.
+    :type GOOGLE_REDIRECT_URI: str
+    """
+
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: SecretStr
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8001/api/v1/auth/google/callback"
+
+    model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
+
+
 stripe_settings = StripeSettings()
 redis_settings = RedisSettings()
 jwt_settings = Settings()
+google_auth_settings = GoogleAuthSettings()

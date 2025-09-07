@@ -1,8 +1,12 @@
 import asyncio
-
+from datetime import datetime, timezone
+from urllib.parse import urlencode
 import bcrypt
-
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from fastapi import HTTPException
+from fastapi.responses import RedirectResponse
+from fastapi import Response
 
 from services.users_service.app.db.models.user import Role
 from services.users_service.app.repositories.user_repo import UserRepository
@@ -18,6 +22,14 @@ from services.users_service.app.core.jwt import (
     decode_token_or_raise,
 )
 from services.users_service.app.core.token_store import TokenStore
+from services.users_service.app.core.config import google_auth_settings
+
+
+REFRESH_COOKIE = "refresh_token"
+COOKIE_PATH = "/"
+COOKIE_SAMESITE = "lax"
+COOKIE_SECURE = False
+COOKIE_HTTPONLY = True
 
 
 class AuthService:
@@ -41,7 +53,9 @@ class AuthService:
     :type token_store: TokenStore
     """
 
-    def __init__(self, sessionmaker: async_sessionmaker[AsyncSession], token_store: TokenStore) -> None:
+    def __init__(
+        self, sessionmaker: async_sessionmaker[AsyncSession], token_store: TokenStore
+    ) -> None:
         self._sm = sessionmaker
         self._ts = token_store
 
@@ -102,20 +116,16 @@ class AuthService:
                 repo = UserRepository(session)
                 user = await repo.get_user_by_email(str(user_data.email))
                 if not user:
-                    raise ValueError(
-                        "Invalid email or password"
-                    )
+                    raise ValueError("Invalid email or password")
 
                 ok = await self.verify_password(user_data.password, user.password_hash)
                 if not ok:
-                    raise ValueError(
-                        "Invalid email or password"
-                    )
-                access = create_access_token(
-                    user_id=user.user_id, role=user.role.value)
+                    raise ValueError("Invalid email or password")
+                access = create_access_token(user_id=user.user_id, role=user.role.value)
 
                 refresh = create_refresh_token(
-                    user_id=user.user_id, role=user.role.value)
+                    user_id=user.user_id, role=user.role.value
+                )
 
                 a = decode_token_or_raise(access)
                 r = decode_token_or_raise(refresh)
@@ -132,7 +142,6 @@ class AuthService:
                 }
         except Exception as e:
             raise ValueError(f"Login failed: {e!s}")
-
 
     async def refresh_tokens(self, refresh_token: str) -> dict[str, str]:
         try:
@@ -213,9 +222,7 @@ class AuthService:
                     password_data.current_password, user.password_hash
                 )
                 if not ok:
-                    raise ValueError(
-                        "Current password is incorrect"
-                    )
+                    raise ValueError("Current password is incorrect")
 
                 new_hash = await self.hash_password(password_data.new_password)
                 await repo.update_user(user, {"password_hash": new_hash})
@@ -224,107 +231,93 @@ class AuthService:
                 return {"email": email, "message": "Password changed successfully"}
         except Exception as e:
             raise RuntimeError(f"Password change failed: {e!s}")
-    #
-    # async def list_users(
-    #     self,
-    #     *,
-    #     id: int | None = None,
-    #     first_name: str | None = None,
-    #     last_name: str | None = None,
-    #     is_blocked: bool | None = None,
-    #     sort: Iterable[str] = (),
-    # ) -> list[User]:
-    #     async with self._sm() as session:
-    #         stmt = select(User).where(User.deleted_at.is_(None))
-    #         if id is not None:
-    #             stmt = stmt.where(User.id == id)
-    #         if first_name is not None:
-    #             stmt = stmt.where(User.first_name == first_name)
-    #         if last_name is not None:
-    #             stmt = stmt.where(User.last_name == last_name)
-    #         if is_blocked is not None:
-    #             stmt = stmt.where(User.is_blocked == is_blocked)
-    #
-    #         sortmap = {
-    #             "id": User.id,
-    #             "balance": User.balance,
-    #             "last_activity_at": User.last_activity_at,
-    #         }
-    #
-    #         order_clauses = []
-    #         for token in sort:
-    #             if not token:
-    #                 continue
-    #             t = token.strip().lower()
-    #
-    #             if ":" in t:
-    #                 field, direction = t.split(":", 1)
-    #             else:
-    #                 if t in ("asc", "desc"):
-    #                     field, direction = "id", t
-    #                 else:
-    #                     field, direction = t, "asc"
-    #
-    #             col = sortmap.get(field)
-    #             if not col or direction not in ("asc", "desc"):
-    #                 continue
-    #             order_clauses.append(asc(col) if direction == "asc" else desc(col))
-    #
-    #         if order_clauses:
-    #             stmt = stmt.order_by(*order_clauses)
-    #
-    #         result = await session.scalars(stmt)
-    #         return list(result.all())
-    #
-    # async def get_profile(self, user_id: int) -> User:
-    #     async with self._sm() as session:
-    #         user = await session.scalar(
-    #             select(User).where(User.id == user_id, User.deleted_at.is_(None))
-    #         )
-    #         if not user:
-    #             raise auth_exc.UserNotFoundException("User not found")
-    #         if not user.first_name or not user.last_name:
-    #             raise auth_exc.ForbiddenException(
-    #                 "Profile is available only if first_name and last_name exist"
-    #             )
-    #         return user
-    #
-    # async def update_balance(
-    #     self, user_id: int, *, amount: int, op: str
-    # ) -> tuple[int, int]:
-    #     async with self._sm() as session:
-    #         res = await session.execute(
-    #             select(User)
-    #             .where(User.id == user_id, User.deleted_at.is_(None))
-    #             .with_for_update(of=User)
-    #         )
-    #         user = res.scalar_one_or_none()
-    #         if not user:
-    #             raise auth_exc.UserNotFoundException("User not found")
-    #         if getattr(user, "role", "user") == "admin":
-    #             raise auth_exc.ForbiddenException("Admins cannot have balance")
-    #         if not user.first_name or not user.last_name:
-    #             raise auth_exc.ForbiddenException(
-    #                 "Balance is available only if first_name and last_name exist"
-    #             )
-    #
-    #         if op == "set":
-    #             new_balance = amount
-    #         elif op == "withdraw":
-    #             new_balance = user.balance - amount
-    #         elif op == "deposit":
-    #             new_balance = user.balance + amount
-    #         else:
-    #             raise auth_exc.AuthException("Unsupported operation")
-    #
-    #         if new_balance < 0:
-    #             raise auth_exc.ForbiddenException("Balance cannot be negative")
-    #
-    #         await session.execute(
-    #             update(User)
-    #             .where(User.id == user_id)
-    #             .values(balance=new_balance, updated_at=func.now())
-    #         )
-    #         await session.commit()
-    #
-    #     return int(user.id), int(new_balance)
+
+    @staticmethod
+    async def generate_google_auth_url() -> dict[str, str]:
+        params = {
+            "client_id": google_auth_settings.GOOGLE_CLIENT_ID,
+            "redirect_uri": google_auth_settings.GOOGLE_REDIRECT_URI,
+            "response_type": "code",
+            "scope": "openid email profile",
+            "access_type": "offline",
+            "prompt": "consent",
+        }
+        url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
+        return {"url": url}
+
+    async def handle_google_auth_callback(self, code: str) -> RedirectResponse:
+        async with httpx.AsyncClient() as client:
+            token_res = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "client_id": google_auth_settings.GOOGLE_CLIENT_ID,
+                    "client_secret": google_auth_settings.GOOGLE_CLIENT_SECRET.get_secret_value(),
+                    "code": code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": google_auth_settings.GOOGLE_REDIRECT_URI,
+                },
+            )
+            token_res.raise_for_status()
+            tokens = token_res.json()
+
+        async with httpx.AsyncClient() as client:
+            userinfo_res = await client.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {tokens['access_token']}"},
+            )
+            userinfo_res.raise_for_status()
+            profile = userinfo_res.json()
+        email = profile.get("email")
+        if not email:
+            raise HTTPException(400, "Email not found from Google")
+        async with self._sm() as session:
+            repo = UserRepository(session)
+            user = await repo.get_user_by_email(email)
+            if not user:
+                user = await repo.create_user(
+                    {"email": email, "password_hash": "", "role": Role.CUSTOMER}
+                )
+                await repo.save()
+
+        access = create_access_token(user_id=user.user_id, role=user.role.value)
+        refresh = create_refresh_token(user_id=user.user_id, role=user.role.value)
+
+        a = decode_token_or_raise(access)
+        r = decode_token_or_raise(refresh)
+
+        await self._ts.allow("access", a["jti"], a["exp"])
+        await self._ts.allow("refresh", r["jti"], r["exp"])
+
+        resp = RedirectResponse("http://localhost:5173/dashboard")
+        await self.set_cookie(resp, refresh)
+        return resp
+
+    @staticmethod
+    async def set_cookie(
+        response: Response,
+        token: str,
+    ) -> None:
+        payload = decode_token_or_raise(token)
+        exp = int(payload["exp"])
+        max_age = max(1, exp - int(datetime.now(timezone.utc).timestamp()))
+
+        response.set_cookie(
+            key=REFRESH_COOKIE,
+            value=token,
+            max_age=max_age,
+            httponly=COOKIE_HTTPONLY,
+            secure=COOKIE_SECURE,
+            samesite=COOKIE_SAMESITE,
+            path=COOKIE_PATH,
+        )
+
+    @staticmethod
+    async def delete_cookie(response: Response) -> None:
+
+        response.delete_cookie(
+            key=REFRESH_COOKIE,
+            path=COOKIE_PATH,
+            httponly=COOKIE_HTTPONLY,
+            secure=COOKIE_SECURE,
+            samesite=COOKIE_SAMESITE,
+        )

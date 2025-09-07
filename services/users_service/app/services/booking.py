@@ -108,6 +108,7 @@ class BookingService:
         options: Sequence[OptionPick],
         option_rows: Sequence[Option],
         per_passenger_options: bool,
+        seat_type_name: str,
         discount: Discount | None,
         _base_price: Decimal,
         _currency: str,

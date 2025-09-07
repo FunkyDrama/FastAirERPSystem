@@ -107,5 +107,30 @@ services:
     command: celery -A notifications_service.app.worker worker --loglevel=INFO -Q emails
     profiles: [ "prod","dev" ]
 
+
+  frontend-users:
+    build:
+      context: ../../frontends/customer
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - users
+    profiles: [ "prod" ]
+
+  frontend-users-dev:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ../../frontends/customer:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - users-dev
+    profiles: [ "dev" ]
+
+
 volumes:
   db_data:

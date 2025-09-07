@@ -26,7 +26,9 @@ class PaymentService:
     :type user: Any
     """
 
-    def __init__(self, repo: BookingRepository, current_user: UserAccount | None) -> None:
+    def __init__(
+        self, repo: BookingRepository, current_user: UserAccount | None
+    ) -> None:
         self.repo = repo
         self.user = current_user
         stripe.api_key = stripe_settings.STRIPE_SECRET_KEY.get_secret_value()
@@ -42,27 +44,47 @@ class PaymentService:
 
         try:
             amount_cents = int(Decimal(b.total_amount) * 100)
-            intent = stripe.PaymentIntent.create(
-                amount=amount_cents,
-                currency="usd",
-                automatic_payment_methods={
-                    "enabled": True,
-                    "allow_redirects": "never",
-                },
+
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                mode="payment",
+                line_items=[
+                    {
+                        "price_data": {
+                            "currency": "usd",
+                            "product_data": {
+                                "name": f"Booking {b.booking_id}",
+                                "description": (
+                                    f"{b.tickets[0].flight.origin} → {b.tickets[0].flight.destination}"
+                                    if b.tickets
+                                    else "Flight"
+                                ),
+                            },
+                            "unit_amount": amount_cents,
+                        },
+                        "quantity": 1,
+                    }
+                ],
+                success_url="http://localhost:5173/dashboard?success=true&booking_id={CHECKOUT_SESSION_ID}",
+                cancel_url="http://localhost:5173/dashboard?canceled=true",
                 metadata={
                     "booking_id": str(b.booking_id),
                     "user_id": str(self.user.user_id),
                 },
+                customer_email=(b.user.email if b.user and b.user.email else None),
+                allow_promotion_codes=True,
             )
         except stripe.error.StripeError as e:
             raise HTTPException(
                 status_code=502, detail=f"Stripe error: {e.user_message or str(e)}"
             )
 
-        b.stripe_payment_intent_id = intent.id
-        b.stripe_payment_status = intent.status
+        saved_id = session.payment_intent or session.id
+
+        b.stripe_payment_intent_id = saved_id
+        b.stripe_payment_status = "requires_payment_method"
         await self.repo.save()
-        return {"client_secret": intent.client_secret, "payment_intent_id": intent.id}
+        return {"url": session.url, "checkout_session_id": session.id}
 
     async def refund(self, booking_id: UUID) -> dict:
         b = await self.repo.get_booking_for_owner(booking_id, self.user.user_id)
@@ -75,11 +97,23 @@ class PaymentService:
         if not b.stripe_payment_intent_id:
             raise HTTPException(status_code=409, detail="No Stripe intent")
 
+        intent_id = b.stripe_payment_intent_id
+        if intent_id.startswith("cs_"):
+            try:
+                session = stripe.checkout.Session.retrieve(intent_id)
+                intent_id = session.payment_intent
+            except stripe.error.StripeError as e:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Stripe error (retrieve session): {e.user_message or str(e)}",
+                )
+
         try:
-            r = stripe.Refund.create(payment_intent=b.stripe_payment_intent_id)
+            r = stripe.Refund.create(payment_intent=intent_id)
         except stripe.error.StripeError as e:
             raise HTTPException(
-                status_code=502, detail=f"Stripe error: {e.user_message or str(e)}"
+                status_code=502,
+                detail=f"Stripe error (refund): {e.user_message or str(e)}",
             )
 
         b.stripe_refund_id = r.id
@@ -147,6 +181,30 @@ class PaymentService:
     async def handle_webhook_event(self, event: Event) -> dict:
         typ = event["type"]
         data = event["data"]["object"]
+
+        if typ == "checkout.session.completed":
+            intent_id = data.get("payment_intent")
+            session_id = data.get("id")
+
+            if not intent_id or not session_id:
+                return {"ignored": True}
+            b = await self.repo.get_booking_by_payment_intent(intent_id)
+            if not b:
+                b = await self.repo.get_booking_by_payment_intent(session_id)
+
+            if not b:
+                return {"ignored": True}
+
+            b.stripe_payment_intent_id = intent_id
+            b.stripe_payment_status = "succeeded"
+            b.status = BookingStatus.PAID
+            await self.repo.save()
+
+            if b.user and b.user.email:
+                payload = self._booking_to_payload(b)
+                self._send_notification(b.user.email, payload)
+
+            return {"ok": True}
 
         intent_id = (
             data.get("id") if "payment_intent." in typ else data.get("payment_intent")

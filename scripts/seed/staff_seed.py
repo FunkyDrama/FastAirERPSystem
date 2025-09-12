@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from scripts.db import session_ctx
@@ -27,7 +27,8 @@ async def _truncate_if_required_staff(session: AsyncSession, flush: bool) -> Non
 
 
 async def seed_staff_users(session: AsyncSession) -> None:
-    if (await session.execute(select(StaffUser))).first():
+    exists_query = select(exists().where(StaffUser.user_id.isnot(None)))
+    if (await session.execute(exists_query)).scalar():
         return
     session.add_all(
         [
@@ -55,7 +56,8 @@ async def seed_staff_users(session: AsyncSession) -> None:
 
 
 async def seed_airplanes(session: AsyncSession) -> None:
-    if (await session.execute(select(Airplane))).first():
+    exists_query = select(exists().where(Airplane.airplane_id.isnot(None)))
+    if (await session.execute(exists_query)).scalar():
         return
     session.add_all(
         [

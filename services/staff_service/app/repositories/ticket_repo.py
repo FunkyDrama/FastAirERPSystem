@@ -10,6 +10,14 @@ from services.staff_service.app.db.models.ticket_shadow import (
 )
 
 
+SUCCESS_TICKETS_STATUSES = [
+    TicketStatus.BOOKED,
+    TicketStatus.CHECKED_IN,
+    TicketStatus.BOARDED,
+    TicketStatus.DONE,
+]
+
+
 class TicketRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -44,14 +52,7 @@ class TicketRepository:
     async def get_total_revenue(self) -> Decimal:
         res = await self.session.execute(
             select(func.sum(TicketShadow.price)).where(
-                TicketShadow.status.in_(
-                    [
-                        TicketStatus.BOOKED,
-                        TicketStatus.CHECKED_IN,
-                        TicketStatus.BOARDED,
-                        TicketStatus.DONE,
-                    ]
-                )
+                TicketShadow.status.in_(SUCCESS_TICKETS_STATUSES)
             )
         )
         return res.scalar() or Decimal("0.00")
@@ -60,14 +61,7 @@ class TicketRepository:
         res = await self.session.execute(
             select(func.sum(TicketShadow.price)).where(
                 TicketShadow.flight_id == flight_id,
-                TicketShadow.status.in_(
-                    [
-                        TicketStatus.BOOKED,
-                        TicketStatus.CHECKED_IN,
-                        TicketStatus.BOARDED,
-                        TicketStatus.DONE,
-                    ]
-                ),
+                TicketShadow.status.in_(SUCCESS_TICKETS_STATUSES),
             )
         )
         return res.scalar() or Decimal("0.00")

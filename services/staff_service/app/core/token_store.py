@@ -18,7 +18,8 @@ class TokenStore:
     :ivar prefix: Prefix used in the token keys stored in Redis. Default is 'auth'.
     :type prefix: str
     """
-    def __init__(self, redis: Redis, prefix: str = "users_auth"):
+
+    def __init__(self, redis: Redis, prefix: str = "staff_auth"):
         self.r = redis
         self.prefix = prefix
 

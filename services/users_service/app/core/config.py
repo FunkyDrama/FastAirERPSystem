@@ -48,7 +48,7 @@ class RedisSettings(BaseSettings):
     """
 
     REDIS_URL: str = "redis://redis:6379/0"
-    REDIS_PREFIX: str = "auth"
+    REDIS_PREFIX: str = "users_auth"
 
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
 

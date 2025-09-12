@@ -1,5 +1,8 @@
 import enum
-from sqlalchemy import String, ForeignKey, Enum
+from decimal import Decimal
+import uuid
+
+from sqlalchemy import String, ForeignKey, Enum, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from services.staff_service.app.db.base import Base
 
@@ -63,6 +66,7 @@ class TicketShadow(Base):
     passenger_name: Mapped[str] = mapped_column(String(255), nullable=False)
     seat_number: Mapped[str | None] = mapped_column(String(10))
     seat_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    price: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
 
     status: Mapped[TicketStatus] = mapped_column(
         Enum(TicketStatus, name="ticket_status_enum", native_enum=False),

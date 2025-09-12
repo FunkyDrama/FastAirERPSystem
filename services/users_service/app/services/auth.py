@@ -34,7 +34,7 @@ COOKIE_HTTPONLY = True
 
 class AuthService:
     """
-    AuthService provides functionalities for managing user authentication and
+    StaffAuthService provides functionalities for managing user authentication and
     authorization tasks within the system.
 
     This class includes several methods to handle user registration, login, token

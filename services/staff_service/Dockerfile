@@ -33,4 +33,4 @@ RUN ipython profile create --profile=async && \
 
 EXPOSE 8000
 
-CMD ["python", "-m", "services.users_service.app.main"]
+CMD ["python", "-m", "services.staff_service.app.main"]

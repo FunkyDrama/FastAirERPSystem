@@ -2,6 +2,7 @@ import asyncio
 import click
 
 from services.users_service.app.db.settings import db_settings as users_db_settings
+from services.staff_service.app.db.settings import db_settings as staff_db_settings
 from scripts.seed.users_seed import seed_users_db
 from scripts.seed.staff_seed import seed_staff_db
 
@@ -56,10 +57,9 @@ def seed_cmd(db: str, flush: bool, flights: int, days: int) -> None:
 
         if db in ("staff", "all"):
             await seed_staff_db(
-                # dsn=staff_db_settings.DATABASE_URL,
+                staff_dsn=staff_db_settings.DATABASE_URL,
+                users_dsn=users_db_settings.DATABASE_URL,
                 flush=flush,
-                flights_count=int(flights),
-                days_window=int(days),
             )
 
     asyncio.run(_run())

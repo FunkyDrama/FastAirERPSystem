@@ -7,11 +7,9 @@ from fastapi import (
     Request,
     Security,
 )
-from datetime import datetime, timezone
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from services.users_service.app.core.deps import get_auth_service, get_current_user
-from services.users_service.app.core.jwt import decode_token_or_raise
 from services.users_service.app.db.models.user import UserAccount
 from services.users_service.app.schemas.auth import (
     UserRegistration,

@@ -4,12 +4,7 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.staff_service.app.db.models.flight import Flight, FlightStatus
 from services.staff_service.app.db.models.staff_user import StaffUser
-from services.staff_service.app.db.models.ticket_shadow import (
-    TicketShadow,
-    TicketStatus,
-)
 
 
 class StaffUserRepository:
@@ -55,7 +50,3 @@ class StaffUserRepository:
             select(StaffUser).where(StaffUser.role == role)
         )
         return res.scalars().all()
-
-
-
-

@@ -15,6 +15,14 @@ class FlightRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    async def save(self) -> None:
+        await self.session.commit()
+
+    async def create_flight(self, flight: Flight) -> Flight:
+        self.session.add(flight)
+        await self.session.flush()
+        return flight
+
     async def cancel_flight(self, flight_id: uuid.UUID):
         stmt = (
             select(Flight)
@@ -47,3 +55,18 @@ class FlightRepository:
 
         res = await self.session.execute(stmt)
         return res.scalars().all()
+
+    async def assign_seat_number(self, flight_id: uuid.UUID) -> str:
+        result = await self.session.execute(
+            select(TicketShadow.seat_number)
+            .where(TicketShadow.flight_id == flight_id)
+            .where(TicketShadow.seat_number.isnot(None))
+        )
+        occupied_seats = {row[0] for row in result}
+
+        for row in range(1, 31):
+            for seat_letter in ["A", "B", "C", "D", "E", "F"]:
+                seat = f"{row}{seat_letter}"
+                if seat not in occupied_seats:
+                    return seat
+        raise ValueError("No available seats")

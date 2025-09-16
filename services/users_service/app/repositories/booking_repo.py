@@ -117,6 +117,7 @@ class BookingRepository:
             .where(Booking.stripe_payment_intent_id == intent_id)
             .options(
                 selectinload(Booking.tickets).selectinload(Ticket.flight),
+                selectinload(Booking.tickets).selectinload(Ticket.passenger),
                 joinedload(Booking.user),
             )
         )

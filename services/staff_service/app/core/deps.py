@@ -7,9 +7,12 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 from services.staff_service.app.core.jwt import decode_token_or_raise
 from services.staff_service.app.core.token_store import TokenStore
-from services.staff_service.app.db.models.staff_user import StaffUser
+from services.staff_service.app.db.models.staff_user import StaffUser, StaffRole
 from services.staff_service.app.repositories.staff_repo import StaffUserRepository
 from services.staff_service.app.services.auth import StaffAuthService
+from services.staff_service.app.services.check_in_manager import CheckInManagerService
+from services.staff_service.app.services.gate_manager import GateManagerService
+from services.staff_service.app.services.supervisor import SupervisorService
 
 
 def get_token_store(request: Request) -> TokenStore:
@@ -48,6 +51,24 @@ def get_auth_service(
     ts: TokenStore = Depends(get_token_store),
 ) -> StaffAuthService:
     return StaffAuthService(sessionmaker=sm, token_store=ts)
+
+
+def get_gate_service(
+    sm: async_sessionmaker[AsyncSession] = Depends(get_sessionmaker),
+) -> GateManagerService:
+    return GateManagerService(sessionmaker=sm)
+
+
+def get_checkin_service(
+    sm: async_sessionmaker[AsyncSession] = Depends(get_sessionmaker),
+) -> CheckInManagerService:
+    return CheckInManagerService(sessionmaker=sm)
+
+
+def get_supervisor_service(
+    sm: async_sessionmaker[AsyncSession] = Depends(get_sessionmaker),
+) -> SupervisorService:
+    return SupervisorService(sessionmaker=sm)
 
 
 async def get_current_user(
@@ -95,4 +116,30 @@ async def get_current_user(
     user = await repo.get_staff_by_id(uid)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid token")
+    return user
+
+
+async def require_gate_manager(
+    user: StaffUser = Depends(get_current_user),
+) -> StaffUser:
+    allowed_roles = {StaffRole.GATE_MANAGER, StaffRole.SUPERVISOR}
+    if user.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return user
+
+
+async def require_checkin_manager(
+    user: StaffUser = Depends(get_current_user),
+) -> StaffUser:
+    allowed_roles = {StaffRole.CHECKIN_MANAGER, StaffRole.SUPERVISOR}
+    if user.role not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return user
+
+
+async def require_supervisor(
+    user: StaffUser = Depends(get_current_user),
+) -> StaffUser:
+    if user.role != StaffRole.SUPERVISOR:
+        raise HTTPException(status_code=403, detail="Access denied")
     return user

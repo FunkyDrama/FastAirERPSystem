@@ -19,7 +19,4 @@ COPY pyproject.toml poetry.lock /app/
 RUN pip install --no-cache-dir poetry \
  && poetry install --no-interaction --no-root
 
-
-COPY notifications_service /app/notifications_service
-
-CMD ["celery", "-A", "notifications_service.app.worker", "worker", "--loglevel=INFO", "-Q", "emails"]
+COPY . /app/

@@ -10,9 +10,6 @@ services:
         condition: service_healthy
       staff_db:
         condition: service_healthy
-#    env_file:
-#      - services/users_service/.env
-#      - services/staff_service/.env
     environment:
       - PYTHONPATH=/app
       - USERS_DATABASE_URL=postgresql+asyncpg://postgres:postgres@users_db:5432/users_db
@@ -165,7 +162,7 @@ services:
       sh -c "uvicorn services.staff_service.app.main:app --host 0.0.0.0 --port 8000 --reload"
     profiles: [ "dev" ]
 
-  notifications_service:
+  notifications_worker_users:
     build:
       context: .
       dockerfile: notifications_service/Dockerfile
@@ -176,7 +173,21 @@ services:
     environment:
       - PYTHONPATH=/app
       - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672//
-    command: celery -A notifications_service.app.worker worker --loglevel=INFO -Q emails
+    command: celery -A notifications_service.app.worker worker --loglevel=INFO -Q users --pool=solo
+    profiles: [ "prod","dev" ]
+
+  notifications_worker_staff:
+    build:
+      context: .
+      dockerfile: notifications_service/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_started
+    env_file: notifications_service/.env
+    environment:
+      - PYTHONPATH=/app
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672//
+    command: celery -A notifications_service.app.worker worker --loglevel=INFO -Q staff --pool=solo
     profiles: [ "prod","dev" ]
 
   frontend-users:

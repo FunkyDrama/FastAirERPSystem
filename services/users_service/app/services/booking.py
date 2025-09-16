@@ -12,10 +12,12 @@ from services.users_service.app.db.models.booking import BookingStatus
 from services.users_service.app.db.models.discount import Discount
 from services.users_service.app.db.models.flight_ref import FlightRef, FlightStatus
 from services.users_service.app.db.models.option import Option, ticket_options
+from services.users_service.app.db.models.passenger import Passenger
 from services.users_service.app.db.models.pricing import PricingConfig
 from services.users_service.app.db.models.seat_type import SeatType
 from services.users_service.app.db.models.ticket import Ticket, TicketStatus
 from services.users_service.app.db.models.user import UserAccount
+from services.users_service.app.messaging.task_manager import UserTaskManager
 from services.users_service.app.repositories.booking_repo import BookingRepository
 from services.users_service.app.schemas.booking import (
     QuoteIn,
@@ -58,6 +60,7 @@ class BookingService:
         self.session = session
         self.current_user = current_user
         self.repo = BookingRepository(session)
+        self.tm = UserTaskManager()
 
     async def _load_refs(
         self,
@@ -223,6 +226,12 @@ class BookingService:
 
         return ids
 
+    async def _load_passengers(self, ids: list[uuid.UUID]) -> Sequence["Passenger"]:
+        res = await self.session.execute(
+            select(Passenger).where(Passenger.passenger_id.in_(ids))
+        )
+        return res.scalars().all()
+
     async def create(self, data: CreateBookingIn) -> BookingOut:
         try:
             flight, seat, opts, disc = await self._load_refs(
@@ -232,6 +241,7 @@ class BookingService:
                 discount_code=data.discount_code,
             )
             passenger_ids = await self._resolve_passengers(data.passengers)
+            passengers = await self._load_passengers(passenger_ids)
 
             base_price, currency, multiplier = await self._load_pricing(
                 data.seat_type_name
@@ -280,6 +290,7 @@ class BookingService:
             )
 
             await self.repo.save()
+            self.tm.sync_booking(booking, flight, tickets, passengers)
 
             return BookingOut(
                 booking_id=booking.booking_id,

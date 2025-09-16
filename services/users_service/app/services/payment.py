@@ -7,6 +7,7 @@ from stripe import Event
 from notifications_service.app.worker import celery_app
 from services.users_service.app.db.models.booking import BookingStatus
 from services.users_service.app.db.models.user import UserAccount
+from services.users_service.app.messaging.task_manager import UserTaskManager
 from services.users_service.app.repositories.booking_repo import BookingRepository
 from services.users_service.app.core.config import stripe_settings
 
@@ -31,6 +32,7 @@ class PaymentService:
     ) -> None:
         self.repo = repo
         self.user = current_user
+        self.tm = UserTaskManager()
         stripe.api_key = stripe_settings.STRIPE_SECRET_KEY.get_secret_value()
 
     async def create_intent(self, booking_id: UUID) -> dict:
@@ -117,7 +119,13 @@ class PaymentService:
             )
 
         b.stripe_refund_id = r.id
+        b.status = BookingStatus.REFUNDED
         await self.repo.save()
+
+        self.tm.mark_tickets_refunded(
+            b.booking_id, [t.ticket_number for t in b.tickets]
+        )
+
         return {
             "status": "refund_submitted",
             "refund_id": r.id,
@@ -161,22 +169,13 @@ class PaymentService:
                 {
                     "ticket_number": t.ticket_number,
                     "passenger_id": str(t.passenger_id),
+                    "passenger_name": f"{t.passenger.first_name} {t.passenger.last_name}" if t.passenger else "",
                     "seat_type_name": t.seat_type_name,
                     "price": str(t.price),
                 }
                 for t in b.tickets
             ],
         }
-
-    def _send_notification(self, recipient: str, payload: dict):
-        tickets = payload.get("tickets", [])
-        ticket_number = tickets[0]["ticket_number"] if tickets else ""
-
-        celery_app.send_task(
-            "notifications_service.app.tasks.send_email",
-            args=[recipient, payload["booking_id"], ticket_number],
-            queue="emails",
-        )
 
     async def handle_webhook_event(self, event: Event) -> dict:
         typ = event["type"]
@@ -200,9 +199,13 @@ class PaymentService:
             b.status = BookingStatus.PAID
             await self.repo.save()
 
+            self.tm.mark_tickets_paid(
+                b.booking_id, [t.ticket_number for t in b.tickets]
+            )
+
             if b.user and b.user.email:
                 payload = self._booking_to_payload(b)
-                self._send_notification(b.user.email, payload)
+                self.tm.send_notification(b.user.email, payload)
 
             return {"ok": True}
 
@@ -221,9 +224,12 @@ class PaymentService:
             b.status = BookingStatus.PAID
             await self.repo.save()
 
+            self.tm.mark_tickets_paid(
+                b.booking_id, [t.ticket_number for t in b.tickets]
+            )
             if b.user and b.user.email:
                 payload = self._booking_to_payload(b)
-                self._send_notification(b.user.email, payload)
+                self.tm.send_notification(b.user.email, payload)
 
             return {"ok": True}
 
@@ -231,6 +237,9 @@ class PaymentService:
             b.stripe_payment_status = "refunded"
             b.status = BookingStatus.REFUNDED
             await self.repo.save()
+            self.tm.mark_tickets_paid(
+                b.booking_id, [t.ticket_number for t in b.tickets]
+            )
             return {"ok": True}
 
         if typ == "payment_intent.payment_failed":

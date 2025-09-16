@@ -10,6 +10,9 @@ class AirplaneRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def save(self) -> None:
+        await self.session.commit()
+
     async def add_airplane(self, model: str, total_seats: int) -> Airplane:
         airplane = Airplane(
             airplane_id=uuid.uuid4(),

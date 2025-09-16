@@ -22,6 +22,9 @@ class TicketRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def save(self) -> None:
+        await self.session.commit()
+
     async def get_ticket_by_number(self, ticket_number: str) -> TicketShadow | None:
         res = await self.session.execute(
             select(TicketShadow).where(TicketShadow.ticket_number == ticket_number)
@@ -29,14 +32,21 @@ class TicketRepository:
         return res.scalar_one_or_none()
 
     async def update_ticket_status(
-        self, ticket: TicketShadow, status: str
+        self, ticket: TicketShadow, status: TicketStatus, seat_number: str | None = None
     ) -> TicketShadow:
         ticket.status = status
+        if seat_number:
+            ticket.seat_number = seat_number
         await self.session.flush()
         return ticket
 
-    async def get_all_tickets(self) -> Sequence[TicketShadow]:
-        res = await self.session.execute(select(TicketShadow))
+    async def get_all_tickets(
+        self, flight_id: str | None = None
+    ) -> Sequence[TicketShadow]:
+        stmt = select(TicketShadow)
+        if flight_id:
+            stmt = stmt.where(TicketShadow.flight_id == flight_id)
+        res = await self.session.execute(stmt)
         return res.scalars().all()
 
     async def set_seat_number(

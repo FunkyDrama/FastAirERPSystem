@@ -1,3 +1,5 @@
+import json
+
 import qrcode
 import aiosmtplib
 import asyncio
@@ -13,8 +15,8 @@ from notifications_service.app.worker import celery_app
 env = Environment(loader=FileSystemLoader("notifications_service/app/templates"))
 
 
-@celery_app.task(name="notifications_service.app.tasks.send_email")
-def send_booking_email(to_email: str, booking_id: str, ticket_number: str):
+@celery_app.task(name="users.send_email")
+def send_booking_email(to_email: str, booking_id: str, ticket_number: str, passenger_name: str):
     """
     Send an email with booking details, including a QR code representing the ticket.
 
@@ -34,21 +36,32 @@ def send_booking_email(to_email: str, booking_id: str, ticket_number: str):
     :type booking_id: str
     :param ticket_number: Unique identifier for the ticket issued.
     :type ticket_number: str
+    :param passenger_name: Full name of the passenger for whom the ticket is issued.
+    :type passenger_name: str
     :return: None
     :rtype: None
     """
 
     async def _send():
-        qr = qrcode.make(f"booking:{booking_id},ticket:{ticket_number}")
+        qr_data = {
+            "booking_id": booking_id,
+            "ticket_number": ticket_number,
+            "passenger_name": passenger_name,
+        }
+        qr = qrcode.make(json.dumps(qr_data))
         buf = BytesIO()
         qr.save(buf, format="PNG")
         qr_bytes = buf.getvalue()
 
         template = env.get_template("booking_email.html.j2")
-        html = template.render(booking_id=booking_id, ticket_number=ticket_number)
+        html = template.render(
+            booking_id=booking_id,
+            ticket_number=ticket_number,
+            passenger_name=passenger_name,
+        )
 
         msg = MIMEMultipart("related")
-        msg["Subject"] = "Your FastAir Ticket"
+        msg["Subject"] = f"Your FastAir Ticket – {passenger_name}"
         msg["From"] = email_settings.EMAIL_FROM
         msg["To"] = to_email
 

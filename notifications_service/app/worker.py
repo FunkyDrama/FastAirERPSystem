@@ -8,7 +8,13 @@ celery_app = Celery(
 )
 
 celery_app.conf.task_routes = {
-    "notifications_service.app.tasks.send_email": {"queue": "emails"},
+    "users.*": {"queue": "users"},
+    "staff.*": {"queue": "staff"},
 }
 
-celery_app.autodiscover_tasks(["notifications_service.app.tasks"])
+celery_app.autodiscover_tasks(
+    [
+        "notifications_service.app.tasks.users",
+        "notifications_service.app.tasks.staff",
+    ],
+)

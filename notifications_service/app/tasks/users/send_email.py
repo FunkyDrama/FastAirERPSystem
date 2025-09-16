@@ -16,7 +16,7 @@ env = Environment(loader=FileSystemLoader("notifications_service/app/templates")
 
 
 @celery_app.task(name="users.send_email")
-def send_booking_email(to_email: str, booking_id: str, ticket_number: str, passenger_name: str):
+def send_booking_email(to_email: str, booking_id: str, ticket_number: str, passenger_name: str) -> None:
     """
     Send an email with booking details, including a QR code representing the ticket.
 

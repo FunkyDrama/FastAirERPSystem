@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from sqlalchemy import update
@@ -13,34 +12,28 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="staff.mark_tickets_paid")
-def mark_tickets_paid(booking_id: str, ticket_numbers: list[str]):
-    async def _sync():
-        async with db_manager.get_session("staff") as session:
-            await session.execute(
-                update(TicketShadow)
-                .where(TicketShadow.ticket_number.in_(ticket_numbers))
-                .values(status=TicketStatus.BOOKED)
-            )
-            await session.commit()
-            logger.info(
-                f"Tickets {ticket_numbers} for booking {booking_id} marked as paid in staff_db"
-            )
-
-    asyncio.run(_sync())
+def mark_tickets_paid(booking_id: str, ticket_numbers: list[str]) -> None:
+    with db_manager.get_sync_session("staff") as session:
+        session.execute(
+            update(TicketShadow)
+            .where(TicketShadow.ticket_number.in_(ticket_numbers))
+            .values(status=TicketStatus.BOOKED)
+        )
+        session.commit()
+        logger.info(
+            f"Tickets {ticket_numbers} for booking {booking_id} marked as paid in staff_db"
+        )
 
 
 @celery_app.task(name="staff.mark_tickets_refunded")
-def mark_tickets_refunded(booking_id: str, ticket_numbers: list[str]):
-    async def _sync():
-        async with db_manager.get_session("staff") as session:
-            await session.execute(
-                update(TicketShadow)
-                .where(TicketShadow.ticket_number.in_(ticket_numbers))
-                .values(status=TicketStatus.CANCELED)
-            )
-            await session.commit()
-            logger.info(
-                f"Tickets {ticket_numbers} for booking {booking_id} refunded in staff_db"
-            )
-
-    asyncio.run(_sync())
+def mark_tickets_refunded(booking_id: str, ticket_numbers: list[str]) -> None:
+    with db_manager.get_sync_session("staff") as session:
+        session.execute(
+            update(TicketShadow)
+            .where(TicketShadow.ticket_number.in_(ticket_numbers))
+            .values(status=TicketStatus.CANCELED)
+        )
+        session.commit()
+        logger.info(
+            f"Tickets {ticket_numbers} for booking {booking_id} refunded in staff_db"
+        )

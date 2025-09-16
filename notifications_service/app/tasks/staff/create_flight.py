@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 
 from sqlalchemy import insert
@@ -9,19 +8,12 @@ from services.users_service.app.db.models.flight_ref import FlightRef, FlightSta
 
 
 @celery_app.task(name="staff.create_flight")
-def create_flight(flight_data: dict):
-    async def _create():
-        async with db_manager.get_session("users") as session:
-            stmt = insert(FlightRef).values(
-                flight_id=uuid.UUID(flight_data["flight_id"]),
-                flight_number=flight_data["flight_number"],
-                origin=flight_data["origin"],
-                destination=flight_data["destination"],
-                departure_time=flight_data["departure_time"],
-                arrival_time=flight_data["arrival_time"],
-                status=FlightStatus.SCHEDULED,
-            )
-            await session.execute(stmt)
-            await session.commit()
-
-    asyncio.run(_create())
+def create_flight(flight_data: dict) -> None:
+    with db_manager.get_sync_session("users") as session:
+        stmt = insert(FlightRef).values(
+            **flight_data,
+            flight_id=uuid.UUID(flight_data["flight_id"]),
+            status=FlightStatus.SCHEDULED,
+        )
+        session.execute(stmt)
+        session.commit()

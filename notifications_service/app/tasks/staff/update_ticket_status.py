@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from sqlalchemy import update
@@ -10,21 +9,20 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="staff.update_ticket_status")
-def update_ticket_status(ticket_number: str, status: str, seat_number: str = None):
-    async def _sync():
-        async with db_manager.get_session("users") as session:
-            update_values = {"status": status}
-            if seat_number:
-                update_values["seat_number"] = seat_number
+def update_ticket_status(
+    ticket_number: str, status: str, seat_number: str = None
+) -> None:
+    with db_manager.get_sync_session("users") as session:
+        update_values = {"status": status}
+        if seat_number:
+            update_values["seat_number"] = seat_number
 
-            await session.execute(
-                update(Ticket)
-                .where(Ticket.ticket_number == ticket_number)
-                .values(**update_values)
-            )
-            await session.commit()
-            logger.info(
-                f"Updated ticket {ticket_number} status to {status} in users_db",
-            )
-
-    asyncio.run(_sync())
+        session.execute(
+            update(Ticket)
+            .where(Ticket.ticket_number == ticket_number)
+            .values(**update_values)
+        )
+        session.commit()
+        logger.info(
+            f"Updated ticket {ticket_number} status to {status} in users_db",
+        )

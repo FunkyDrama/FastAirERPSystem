@@ -4,6 +4,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from collections.abc import Sequence
 
+from services.staff_service.app.db.models.flight import Flight
 from services.staff_service.app.db.models.ticket_shadow import (
     TicketShadow,
     TicketStatus,
@@ -41,11 +42,15 @@ class TicketRepository:
         return ticket
 
     async def get_all_tickets(
-        self, flight_id: str | None = None
+        self, *, flight_id: str | None = None, flight_number: str | None = None
     ) -> Sequence[TicketShadow]:
         stmt = select(TicketShadow)
         if flight_id:
             stmt = stmt.where(TicketShadow.flight_id == flight_id)
+        if flight_number:
+            stmt = stmt.join(TicketShadow.flight).where(
+                Flight.flight_number == flight_number
+            )
         res = await self.session.execute(stmt)
         return res.scalars().all()
 

@@ -14,8 +14,8 @@ from services.staff_service.app.core.token_store import TokenStore
 from services.staff_service.app.repositories.staff_repo import StaffUserRepository
 from services.staff_service.app.schemas.auth import StaffUserLogin
 
-REFRESH_COOKIE = "refresh_token"
-COOKIE_PATH = "/"
+REFRESH_COOKIE = "staff_refresh_token"
+COOKIE_PATH = "/api/v1/staff/auth/refresh"
 COOKIE_SAMESITE = "lax"
 COOKIE_SECURE = False
 COOKIE_HTTPONLY = True

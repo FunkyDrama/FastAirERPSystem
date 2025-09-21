@@ -13,7 +13,7 @@ export const AuthProvider = ({children}) => {
                 const res = await api.post("/auth/refresh");
                 if (res.data.access_token) {
                     setAccessToken(res.data.access_token);
-                    const me = await api.get("/me");
+                    const me = await api.get("/auth/me");
                     setUser(me.data);
                 }
             } catch {
@@ -30,7 +30,7 @@ export const AuthProvider = ({children}) => {
         const res = await api.post("/auth/login", credentials, {withCredentials: true});
         if (res.data.access_token) {
             setAccessToken(res.data.access_token);
-            const me = await api.get("/me");
+            const me = await api.get("/auth/me");
             setUser(me.data);
         }
     };

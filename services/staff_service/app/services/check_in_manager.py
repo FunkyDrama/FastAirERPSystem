@@ -43,16 +43,16 @@ class CheckInManagerService:
                 ticket_number=ticket_number, status=TicketStatus.CHECKED_IN.value
             )
 
-    async def get_all_passengers_on_flight(self, flight_id: str):
+    async def get_all_passengers_on_flight(self, flight_number: str):
         async with self._sm() as session:
             repo = TicketRepository(session)
-            tickets = await repo.get_all_tickets(flight_id)
+            tickets = await repo.get_all_tickets(flight_number=flight_number)
             return PassengersOnFlight(
                 passengers=[
                     PassengerOnFlight(
                         passenger_name=ticket.passenger_name,
                         ticket_number=ticket.ticket_number,
-                        flight_number=flight_id,
+                        flight_number=flight_number,
                         seat_number=ticket.seat_number,
                         seat_type=ticket.seat_type,
                     )
@@ -62,19 +62,17 @@ class CheckInManagerService:
             )
 
     async def handle_qr_code(self, ticket_number: str) -> QRScanOut:
+
+        await self.check_in_ticket(ticket_number)
+
         async with self._sm() as session:
             repo = TicketRepository(session)
             ticket = await repo.get_ticket_by_number(ticket_number)
-            if not ticket:
-                raise ValueError(f"Ticket with number {ticket_number} not found")
-            if ticket.status != TicketStatus.CHECKED_IN:
-                raise ValueError(
-                    f"Ticket with number {ticket_number} is not checked in"
-                )
+
             return QRScanOut(
                 flight_id=ticket.flight_id,
                 passenger_name=ticket.passenger_name,
                 seat_number=ticket.seat_number,
                 seat_type=ticket.seat_type,
-                status=TicketStatus.CHECKED_IN.value,
+                status=ticket.status.value,
             )

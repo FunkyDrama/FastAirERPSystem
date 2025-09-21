@@ -9,7 +9,7 @@ from services.staff_service.app.repositories.flight_repo import FlightRepository
 from services.staff_service.app.repositories.staff_repo import StaffUserRepository
 from services.staff_service.app.repositories.ticket_repo import TicketRepository
 from services.staff_service.app.schemas.flight import FlightCreateIn, FlightOut
-from services.staff_service.app.schemas.staff import StaffUserCreateIn
+from services.staff_service.app.schemas.staff import StaffUserCreateIn, StaffUserOut
 from services.staff_service.app.schemas.ticket import RevenueSchema
 from services.staff_service.app.services.auth import StaffAuthService
 
@@ -74,13 +74,22 @@ class SupervisorService:
             flights = await repo.get_all_flights()
             return [FlightOut.model_validate(flight) for flight in flights]
 
+    async def get_all_staff_users(self) -> list[StaffUserOut]:
+        async with self._sm() as session:
+            repo = StaffUserRepository(session)
+            staff = await repo.get_all_staff()
+            return [StaffUserOut.model_validate(s) for s in staff]
+
     async def add_staff(self, data: StaffUserCreateIn) -> dict:
         async with self._sm() as session:
             repo = StaffUserRepository(session)
             if await repo.get_staff_by_email(str(data.email)):
                 raise ValueError("Staff user already exists")
-            await StaffAuthService.hash_password(data.password)
-            await repo.create_staff(**data.model_dump())
+            hashed = await StaffAuthService.hash_password(data.password)
+            payload = data.model_dump()
+            payload["password_hash"] = hashed
+            del payload["password"]
+            await repo.create_staff(payload)
             await repo.save()
             return {"message": "Staff user created"}
 

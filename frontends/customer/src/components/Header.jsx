@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { useAuth } from "./AuthContext.jsx";
-import { Button } from "antd";
-import { motion } from "framer-motion";
+import React, {useEffect, useState} from "react";
+import {Link} from "react-router-dom";
+import {useAuth} from "./AuthContext.jsx";
+import {Button} from "antd";
+import {motion} from "framer-motion";
 
 function Header() {
-    const { accessToken, logout } = useAuth();
+    const {user, logout} = useAuth();
     const [hidden, setHidden] = useState(false);
     const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -25,16 +25,17 @@ function Header() {
 
     return (
         <motion.header
-            initial={{ y: -80 }}
-            animate={{ y: hidden ? -80 : 0 }}
-            transition={{ duration: 0.3 }}
+            initial={{y: -80}}
+            animate={{y: hidden ? -80 : 0}}
+            transition={{duration: 0.3}}
             className="sticky top-0 z-50 flex justify-between items-center px-6 py-4 bg-gray-600 text-white shadow-md"
         >
             <Link to="/" className="flex items-center">
-                <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
+                <img src="/logo.png" alt="Logo" className="h-10 w-auto"/>
             </Link>
+
             <div className="flex gap-3">
-                {!accessToken ? (
+                {!user ? (
                     <>
                         <Link to="/login">
                             <Button type="primary">Login</Button>

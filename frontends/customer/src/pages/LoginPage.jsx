@@ -1,31 +1,38 @@
-import React from "react";
+import React, {useState} from "react";
 import api from "../utils/api.js";
 import {useAuth} from "../components/AuthContext.jsx";
 import {Button, Checkbox, Form, Input} from "antd";
 import {Link} from "react-router-dom";
+import {useNavigate} from "react-router";
 
 function LoginPage() {
     const {login} = useAuth();
+    const navigate = useNavigate();
+    const [error, setError] = useState("");
 
     const handleSubmit = async (values) => {
         try {
-            const res = await api.post("/auth/login", {
+            await login({
                 email: values.email,
                 password: values.password,
             });
-
-            login(res.data.access_token, values.remember);
-            window.location.href = "/dashboard";
+            navigate("/dashboard");
         } catch {
-            alert("Login failed. Please check your credentials.");
+            setError("Login failed. Please check your credentials.");
         }
     };
 
     const handleGoogleLogin = async () => {
         try {
             const res = await api.get("/auth/google/url");
-            window.location.href = res.data.url;
-        } catch {
+            if (res.data.url) {
+                window.location.href = res.data.url;
+            } else {
+                console.error("No URL received from server");
+                alert("Failed to start Google login");
+            }
+        } catch (error) {
+            console.error("Google login error:", error);
             alert("Failed to start Google login");
         }
     };

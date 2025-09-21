@@ -7,7 +7,7 @@ export const setAccessToken = (token) => {
     accessToken = token;
 };
 const api = axios.create({
-    baseURL: "/api/v1",
+    baseURL: "/api/v1/staff",
     withCredentials: true,
 });
 
@@ -34,6 +34,8 @@ createAuthRefreshInterceptor(api, refreshAuthLogic, {
         const url = error?.config?.url || "";
         return url.includes("/auth/login") || url.includes("/auth/refresh") || url.includes("/auth/google");
     }
+
 });
+
 
 export default api;

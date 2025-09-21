@@ -33,16 +33,16 @@ class GateManagerService:
                 ticket_number=ticket_number, status=TicketStatus.BOARDED.value
             )
 
-    async def list_passengers_on_flight(self, flight_id: str):
+    async def list_passengers_on_flight(self, flight_number: str):
         async with self._sm() as session:
             repo = TicketRepository(session)
-            tickets = await repo.get_all_tickets(flight_id)
+            tickets = await repo.get_all_tickets(flight_number=flight_number)
             return PassengersOnFlight(
                 passengers=[
                     PassengerOnFlight(
                         passenger_name=ticket.passenger_name,
                         ticket_number=ticket.ticket_number,
-                        flight_number=flight_id,
+                        flight_number=flight_number,
                         seat_number=ticket.seat_number,
                         seat_type=ticket.seat_type,
                     )

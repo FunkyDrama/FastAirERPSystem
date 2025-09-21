@@ -29,9 +29,12 @@ class QRScanIn(BaseModel):
 class QRScanOut(BaseModel):
     passenger_name: str
     flight_id: uuid.UUID
-    seat_number: str
+    seat_number: str | None = None
     seat_type: str
     status: str
+
+    class Config:
+        from_attributes = True
 
 
 class RevenueSchema(BaseModel):

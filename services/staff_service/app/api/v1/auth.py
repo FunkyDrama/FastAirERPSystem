@@ -62,7 +62,7 @@ async def refresh_tokens(
     :rtype: TokenPair
     :raises HTTPException: If the refresh token cookie is missing or invalid.
     """
-    raw = request.cookies.get("refresh_token")
+    raw = request.cookies.get("staff_refresh_token")
     if not raw:
         raise HTTPException(status_code=401, detail="Missing refresh cookie")
 
@@ -105,7 +105,7 @@ async def logout(
              status message or other relevant data.
     """
     access_token = creds.credentials if creds and creds.credentials else None
-    refresh_token = request.cookies.get("refresh_token")
+    refresh_token = request.cookies.get("staff_refresh_token")
 
     result = await svc.logout_user(
         str(current_user.email),
@@ -114,3 +114,11 @@ async def logout(
     )
     await svc.delete_cookie(response)
     return result
+
+
+@router.get("/me")
+async def me(current_user=Depends(get_current_user)):
+    return {
+        "email": str(current_user.email),
+        "role": current_user.role.value,
+    }

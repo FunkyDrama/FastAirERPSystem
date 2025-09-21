@@ -25,8 +25,8 @@ from services.users_service.app.core.token_store import TokenStore
 from services.users_service.app.core.config import google_auth_settings
 
 
-REFRESH_COOKIE = "refresh_token"
-COOKIE_PATH = "/"
+REFRESH_COOKIE = "user_refresh_token"
+COOKIE_PATH = "/api/v1/auth/refresh"
 COOKIE_SAMESITE = "lax"
 COOKIE_SECURE = False
 COOKIE_HTTPONLY = True

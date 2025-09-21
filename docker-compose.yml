@@ -213,6 +213,29 @@ services:
       - users-dev
     profiles: [ "dev" ]
 
+  frontend-staff:
+    build:
+      context: ./frontends/staff
+      dockerfile: Dockerfile
+    ports:
+      - "5174:80"
+    depends_on:
+      - staff
+    profiles: [ "prod" ]
+
+  frontend-staff-dev:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./frontends/staff:/app
+      - /app/node_modules
+    ports:
+      - "5174:5173"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - staff-dev
+    profiles: [ "dev" ]
+
 volumes:
   users_db_data:
   staff_db_data:

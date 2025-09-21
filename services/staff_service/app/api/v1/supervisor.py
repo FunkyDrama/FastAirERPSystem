@@ -35,6 +35,13 @@ async def delete_flight(
     await svc.delete_flight(flight_id)
 
 
+@router.get("/staff-users")
+async def get_staff_users(
+    svc: SupervisorService = Depends(get_supervisor_service),
+):
+    return await svc.get_all_staff_users()
+
+
 @router.post("/staff-users")
 async def add_staff(
     data: StaffUserCreateIn,

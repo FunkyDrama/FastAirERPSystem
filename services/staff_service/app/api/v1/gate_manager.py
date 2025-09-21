@@ -18,9 +18,9 @@ async def boarding(
     return await gms.registry_ticket_boarding(ticket_number)
 
 
-@router.get("/flights/{flight_id}/passengers/boarding")
+@router.get("/flights/{flight_number}/passengers/boarding")
 async def list_passengers_on_flight(
-    flight_id: str,
+    flight_number: str,
     gms: GateManagerService = Depends(get_gate_service),
 ):
-    return await gms.list_passengers_on_flight(flight_id)
+    return await gms.list_passengers_on_flight(flight_number)

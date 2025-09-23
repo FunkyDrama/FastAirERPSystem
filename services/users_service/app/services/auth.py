@@ -84,31 +84,29 @@ class AuthService:
             raise ValueError(f"Error verifying password: {e!s}")
 
     async def register_user(self, user_data: UserRegistration) -> dict[str, str]:
-        try:
-            async with self._sm() as session:
-                repo = UserRepository(session)
-                user = await repo.get_user_by_email(str(user_data.email))
-                if user:
-                    raise ValueError(
-                        f"User with email {user_data.email} already exists"
-                    )
-
-                hashed = await self.hash_password(user_data.password)
-
-                await repo.create_user(
-                    {
-                        "email": user_data.email,
-                        "password_hash": hashed,
-                        "role": Role.CUSTOMER,
-                    }
+        async with self._sm() as session:
+            repo = UserRepository(session)
+            user = await repo.get_user_by_email(str(user_data.email))
+            if user:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"User with email {user_data.email} already exists",
                 )
-                await repo.save()
-                return {
+
+            hashed = await self.hash_password(user_data.password)
+
+            await repo.create_user(
+                {
                     "email": user_data.email,
-                    "message": "User registered successfully",
+                    "password_hash": hashed,
+                    "role": Role.CUSTOMER,
                 }
-        except Exception as e:
-            raise RuntimeError(f"Registration failed: {e!s}")
+            )
+            await repo.save()
+            return {
+                "email": user_data.email,
+                "message": "User registered successfully",
+            }
 
     async def login_user(self, user_data: UserLogin) -> dict[str, str]:
         try:

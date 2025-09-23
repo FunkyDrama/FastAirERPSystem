@@ -1,10 +1,11 @@
 import React from "react";
 import api from "../utils/api.js";
 import { useAuth } from "../components/AuthContext.jsx";
-import { Button, Form, Input } from "antd";
+import { Button, Form, Input, message } from "antd";
 
 function RegisterPage() {
     const { login } = useAuth();
+    const [form] = Form.useForm();
 
     const handleSubmit = async (values) => {
         try {
@@ -21,13 +22,37 @@ function RegisterPage() {
             login(res.data.access_token, false);
             window.location.href = "/dashboard";
         } catch (err) {
-            alert("Registration failed. Please check your data.");
+            const res = err?.response;
+            if (res?.status === 422 && Array.isArray(res.data?.detail)) {
+                const pwdErr = res.data.detail.find(
+                    (d) => Array.isArray(d.loc) && d.loc.at(-1) === "password"
+                );
+                if (pwdErr?.msg) {
+                    form.setFields([
+                        { name: "password", errors: [pwdErr.msg] },
+                    ]);
+                    return;
+                }
+                const first = res.data.detail[0]?.msg || "Validation error";
+                message.error(first);
+                return;
+            }
+
+            if ((res?.status === 409 || res?.status === 400) && res.data?.detail) {
+                message.error(res.data.detail);
+                if (String(res.data.detail).toLowerCase().includes("email")) {
+                    form.setFields([{ name: "email", errors: [res.data.detail] }]);
+                }
+                return;
+            }
+            message.error("Registration failed. Please check your data.");
         }
     };
 
     return (
         <div className="flex items-center justify-center bg-gray-100 h-screen">
             <Form
+                form={form}
                 name="register"
                 labelCol={{ span: 8 }}
                 wrapperCol={{ span: 16 }}

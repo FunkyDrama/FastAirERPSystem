@@ -28,7 +28,7 @@ from services.users_service.app.core.config import google_auth_settings
 REFRESH_COOKIE = "user_refresh_token"
 COOKIE_PATH = "/api/v1/auth/refresh"
 COOKIE_SAMESITE = "lax"
-COOKIE_SECURE = False
+COOKIE_SECURE = True
 COOKIE_HTTPONLY = True
 
 
@@ -286,7 +286,7 @@ class AuthService:
         await self._ts.allow("access", a["jti"], a["exp"])
         await self._ts.allow("refresh", r["jti"], r["exp"])
 
-        resp = RedirectResponse("http://localhost:5173/dashboard")
+        resp = RedirectResponse(f"{google_auth_settings.FRONTEND_URL}/dashboard")
         await self.set_cookie(resp, refresh)
         return resp
 

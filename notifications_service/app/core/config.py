@@ -38,4 +38,22 @@ class EmailSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
 
 
+class RabbitSettings(BaseSettings):
+    """
+    Configuration class for RabbitMQ settings.
+
+    This class defines the configuration for RabbitMQ services, allowing you to
+    specify details such as the host, port, and authentication details. The
+    purpose is to provide a structured way of managing RabbitMQ-related settings.
+
+    :ivar RABBITMQ_URL: The URL for the RabbitMQ service.
+    :type RABBITMQ_URL: str
+    """
+
+    RABBITMQ_URL: str
+
+    model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
+
+
 email_settings = EmailSettings()
+rabbit_settings = RabbitSettings()

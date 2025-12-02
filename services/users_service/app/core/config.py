@@ -103,7 +103,8 @@ class GoogleAuthSettings(BaseSettings):
 
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: SecretStr
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8001/api/v1/auth/google/callback"
+    GOOGLE_REDIRECT_URI: str
+    FRONTEND_URL: str
 
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
 

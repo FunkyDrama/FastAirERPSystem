@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     JWT_ALG: str = "HS256"
     ACCESS_TTL_SECONDS: int = 900
     REFRESH_TTL_SECONDS: int = 60 * 60 * 24 * 7
+    FRONTEND_URL: str
 
     model_config = SettingsConfigDict(env_file=ROOT_DIR / ".env", extra="ignore")
 

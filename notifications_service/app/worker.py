@@ -1,10 +1,10 @@
-import os
+from notifications_service.app.core.config import rabbit_settings
 from celery import Celery
 
 
 celery_app = Celery(
     "notifications_service",
-    broker=os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672//"),
+    broker=rabbit_settings.RABBITMQ_URL,
 )
 
 celery_app.conf.task_routes = {

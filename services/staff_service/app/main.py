@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
-from services.staff_service.app.core.config import redis_settings
+from services.staff_service.app.core.config import redis_settings, jwt_settings
 from services.staff_service.app.core.init_redis import init_redis, close_redis
 from services.staff_service.app.core.token_store import TokenStore
 from services.staff_service.app.db.base import (
@@ -86,6 +86,7 @@ def create_app() -> FastAPI:
     origins = [
         "http://127.0.0.1:5173",
         "http://localhost:5173",
+        jwt_settings.FRONTEND_URL,
     ]
 
     app.add_middleware(

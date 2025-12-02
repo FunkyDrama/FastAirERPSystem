@@ -17,7 +17,7 @@ from services.staff_service.app.schemas.auth import StaffUserLogin
 REFRESH_COOKIE = "staff_refresh_token"
 COOKIE_PATH = "/api/v1/staff/auth/refresh"
 COOKIE_SAMESITE = "lax"
-COOKIE_SECURE = False
+COOKIE_SECURE = True
 COOKIE_HTTPONLY = True
 
 

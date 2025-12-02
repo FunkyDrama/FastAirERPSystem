@@ -4,12 +4,11 @@ from decimal import Decimal
 from fastapi import HTTPException
 from stripe import Event
 
-from notifications_service.app.worker import celery_app
 from services.users_service.app.db.models.booking import BookingStatus
 from services.users_service.app.db.models.user import UserAccount
 from services.users_service.app.messaging.task_manager import UserTaskManager
 from services.users_service.app.repositories.booking_repo import BookingRepository
-from services.users_service.app.core.config import stripe_settings
+from services.users_service.app.core.config import stripe_settings, google_auth_settings
 
 
 class PaymentService:
@@ -67,8 +66,8 @@ class PaymentService:
                         "quantity": 1,
                     }
                 ],
-                success_url="http://localhost:5173/dashboard?success=true&booking_id={CHECKOUT_SESSION_ID}",
-                cancel_url="http://localhost:5173/dashboard?canceled=true",
+                success_url=google_auth_settings.FRONTEND_URL + "/dashboard?success=true&booking_id={CHECKOUT_SESSION_ID}",
+                cancel_url=google_auth_settings.FRONTEND_URL + "/dashboard?canceled=true",
                 metadata={
                     "booking_id": str(b.booking_id),
                     "user_id": str(self.user.user_id),

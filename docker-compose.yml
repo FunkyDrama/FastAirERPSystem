@@ -1,241 +1,299 @@
 services:
-
-  seeder:
-    build:
-      context: .
-      dockerfile: services/users_service/Dockerfile
-    working_dir: /app
-    depends_on:
-      users_db:
-        condition: service_healthy
-      staff_db:
-        condition: service_healthy
-    environment:
-      - PYTHONPATH=/app
-      - USERS_DATABASE_URL=postgresql+asyncpg://postgres:postgres@users_db:5432/users_db
-      - STAFF_DATABASE_URL=postgresql+asyncpg://postgres:postgres@staff_db:5432/staff_db
-    volumes:
-      - .:/app
-    command: >
-      sh -c "
-        SQLALCHEMY_DATABASE_URL=$$USERS_DATABASE_URL alembic -c services/users_service/app/alembic.ini upgrade head &&
-        SQLALCHEMY_DATABASE_URL=$$STAFF_DATABASE_URL alembic -c services/staff_service/app/alembic.ini upgrade head &&
-        python -m scripts.cli seed --db all --flush --flights 60 --days 14
-      "
-    profiles: [ "dev" ]
-    restart: "no"
-
-  redis:
-    image: redis:7-alpine
-    ports: ["6379:6379"]
-    healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    profiles: ["prod","dev","ci"]
-
-  rabbitmq:
-    image: rabbitmq:3.12-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
-    profiles: ["prod","dev","ci"]
-
   users_db:
     image: postgres:16-alpine
-    env_file: services/users_service/.env
+    container_name: fastair_users_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${USERS_POSTGRES_DB}
+      POSTGRES_USER: ${USERS_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${USERS_POSTGRES_PASSWORD}
     volumes:
       - users_db_data:/var/lib/postgresql/data
+    networks:
+      - internal
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres -h localhost" ]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    profiles: ["prod","dev","ci"]
+      test: ["CMD-SHELL", "pg_isready -U ${USERS_POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
 
   staff_db:
     image: postgres:16-alpine
-    env_file: services/staff_service/.env
+    container_name: fastair_staff_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${STAFF_POSTGRES_DB}
+      POSTGRES_USER: ${STAFF_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${STAFF_POSTGRES_PASSWORD}
     volumes:
       - staff_db_data:/var/lib/postgresql/data
+    networks:
+      - internal
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres -h localhost" ]
+      test: ["CMD-SHELL", "pg_isready -U ${STAFF_POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    container_name: fastair_redis
+    restart: unless-stopped
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 10
-    profiles: ["prod","dev","ci"]
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: fastair_rabbitmq
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RABBITMQ_VM_MEMORY_LIMIT: 200Mi
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    networks:
+      - internal
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
 
   users:
     build:
       context: .
       dockerfile: services/users_service/Dockerfile
+    container_name: fastair_users_api
+    restart: unless-stopped
     depends_on:
       users_db:
         condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
-    env_file: services/users_service/.env
+        condition: service_healthy
+    env_file:
+      - .env
+      - services/users_service/.env
     environment:
       - PYTHONPATH=/app
-    ports: ["8000:8000"]
+    networks:
+      - internal
     command: >
       sh -c "
         alembic -c services/users_service/app/alembic.ini upgrade head &&
-        python -m services.users_service.app.main
+        uvicorn services.users_service.app.main:app --host 0.0.0.0 --port 8000 --workers 1
       "
-    profiles: ["prod"]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   staff:
     build:
       context: .
       dockerfile: services/staff_service/Dockerfile
+    container_name: fastair_staff_api
+    restart: unless-stopped
     depends_on:
       staff_db:
         condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
-    env_file: services/staff_service/.env
+        condition: service_healthy
+    env_file:
+      - .env
+      - services/staff_service/.env
     environment:
       - PYTHONPATH=/app
-    ports: ["8002:8000"]
+    networks:
+      - internal
     command: >
       sh -c "
         alembic -c services/staff_service/app/alembic.ini upgrade head &&
-        python -m services.staff_service.app.main
+        uvicorn services.staff_service.app.main:app --host 0.0.0.0 --port 8000 --workers 1
       "
-    profiles: ["prod"]
-
-
-  users-dev:
-    working_dir: /app
-    build:
-      context: .
-      dockerfile: services/users_service/Dockerfile
-    depends_on:
-      users_db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_started
-    env_file: services/users_service/.env
-    environment:
-      - PYTHONPATH=/app
-    ports: ["8001:8000"]
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/frontends/customer/node_modules
-    command: >
-      sh -c "uvicorn services.users_service.app.main:app --host 0.0.0.0 --port 8000 --reload"
-    profiles: ["dev"]
-
-  staff-dev:
-    working_dir: /app
-    build:
-      context: .
-      dockerfile: services/staff_service/Dockerfile
-    depends_on:
-      staff_db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_started
-    env_file: services/staff_service/.env
-    environment:
-      - PYTHONPATH=/app
-    ports: [ "8003:8000" ]
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/frontends/staff/node_modules
-    command: >
-      sh -c "uvicorn services.staff_service.app.main:app --host 0.0.0.0 --port 8000 --reload"
-    profiles: [ "dev" ]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   notifications_worker_users:
     build:
       context: .
       dockerfile: notifications_service/Dockerfile
+    container_name: fastair_notif_users
+    restart: unless-stopped
     depends_on:
       rabbitmq:
-        condition: service_started
-    env_file: notifications_service/.env
+        condition: service_healthy
+    env_file:
+      - .env
+      - notifications_service/.env
     environment:
       - PYTHONPATH=/app
-      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672//
+    networks:
+      - internal
     command: celery -A notifications_service.app.worker worker --loglevel=INFO -Q users --pool=solo
-    profiles: [ "prod","dev" ]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
 
   notifications_worker_staff:
     build:
       context: .
       dockerfile: notifications_service/Dockerfile
+    container_name: fastair_notif_staff
+    restart: unless-stopped
     depends_on:
       rabbitmq:
-        condition: service_started
-    env_file: notifications_service/.env
+        condition: service_healthy
+    env_file:
+      - .env
+      - notifications_service/.env
     environment:
       - PYTHONPATH=/app
-      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASS:-guest}@rabbitmq:5672//
+    networks:
+      - internal
     command: celery -A notifications_service.app.worker worker --loglevel=INFO -Q staff --pool=solo
-    profiles: [ "prod","dev" ]
+    deploy:
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
 
   frontend-users:
     build:
       context: ./frontends/customer
       dockerfile: Dockerfile
-    ports:
-      - "5173:80"
+    container_name: fastair_frontend_users
+    restart: unless-stopped
     depends_on:
       - users
-    profiles: [ "prod" ]
-
-  frontend-users-dev:
-    image: node:20-alpine
-    working_dir: /app
-    volumes:
-      - ./frontends/customer:/app
-      - /app/node_modules
-    ports:
-      - "5173:5173"
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    depends_on:
-      - users-dev
-    profiles: [ "dev" ]
+    networks:
+      - web
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.fastair-users-https.rule=Host(`fastair.danielkravchenko.dev`)"
+      - "traefik.http.routers.fastair-users-https.entrypoints=websecure"
+      - "traefik.http.routers.fastair-users-https.tls=true"
+      - "traefik.http.routers.fastair-users-https.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.fastair-users-http.rule=Host(`fastair.danielkravchenko.dev`)"
+      - "traefik.http.routers.fastair-users-http.entrypoints=web"
+      - "traefik.http.routers.fastair-users-http.middlewares=fastair-users-redirect@docker"
+      - "traefik.http.middlewares.fastair-users-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.fastair-users-redirect.redirectscheme.permanent=true"
+      - "traefik.http.services.fastair-users.loadbalancer.server.port=80"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 64M
 
   frontend-staff:
     build:
       context: ./frontends/staff
       dockerfile: Dockerfile
-    ports:
-      - "5174:80"
+    container_name: fastair_frontend_staff
+    restart: unless-stopped
     depends_on:
       - staff
-    profiles: [ "prod" ]
+    networks:
+      - web
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.fastair-staff-https.rule=Host(`staff.fastair.danielkravchenko.dev`)"
+      - "traefik.http.routers.fastair-staff-https.entrypoints=websecure"
+      - "traefik.http.routers.fastair-staff-https.tls=true"
+      - "traefik.http.routers.fastair-staff-https.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.fastair-staff-http.rule=Host(`staff.fastair.danielkravchenko.dev`)"
+      - "traefik.http.routers.fastair-staff-http.entrypoints=web"
+      - "traefik.http.routers.fastair-staff-http.middlewares=fastair-staff-redirect@docker"
+      - "traefik.http.middlewares.fastair-staff-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.fastair-staff-redirect.redirectscheme.permanent=true"
+      - "traefik.http.services.fastair-staff.loadbalancer.server.port=80"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 64M
 
-  frontend-staff-dev:
-    image: node:20-alpine
+  seeder:
+    build:
+      context: .
+      dockerfile: services/users_service/Dockerfile
+    container_name: fastair_seeder
     working_dir: /app
-    volumes:
-      - ./frontends/staff:/app
-      - /app/node_modules
-    ports:
-      - "5174:5173"
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     depends_on:
-      - staff-dev
-    profiles: [ "dev" ]
+      users_db:
+        condition: service_healthy
+      staff_db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+    networks:
+      - internal
+    command: >
+      sh -c "
+        SQLALCHEMY_DATABASE_URL=$${USERS_DATABASE_URL} alembic -c services/users_service/app/alembic.ini upgrade head &&
+        SQLALCHEMY_DATABASE_URL=$${STAFF_DATABASE_URL} alembic -c services/staff_service/app/alembic.ini upgrade head &&
+        python -m scripts.cli seed --db all --flush --flights 60 --days 14
+      "
+    restart: "no"
+    profiles: ["seed"]
+
+networks:
+  web:
+    external: true
+  internal:
+    driver: bridge
+    name: fastair_internal
 
 volumes:
   users_db_data:
+    name: fastair_users_db
   staff_db_data:
+    name: fastair_staff_db
+  rabbitmq_data:
+    name: fastair_rabbitmq

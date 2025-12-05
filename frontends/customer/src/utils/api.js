@@ -7,8 +7,7 @@ export const setAccessToken = (token) => {
     accessToken = token;
 };
 const api = axios.create({
-    baseURL: "/api/v1",
-    withCredentials: true,
+    baseURL: "/api/v1", withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
@@ -28,9 +27,7 @@ const refreshAuthLogic = async (failedRequest) => {
 
 
 createAuthRefreshInterceptor(api, refreshAuthLogic, {
-    statusCodes: [401],
-    pauseInstanceWhileRefreshing: true,
-    skipAuthRefresh: (error) => {
+    statusCodes: [401], pauseInstanceWhileRefreshing: true, skipAuthRefresh: (error) => {
         const url = error?.config?.url || "";
         return url.includes("/auth/login") || url.includes("/auth/refresh") || url.includes("/auth/google");
     }

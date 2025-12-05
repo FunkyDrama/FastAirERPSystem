@@ -1,5 +1,5 @@
 import React, {useState} from "react";
-import {Button, Card, Col, Input, message, Modal, Row, Space, Spin, Table, Tag, Typography} from "antd";
+import {App, Button, Card, Col, Input, Modal, Row, Space, Spin, Table, Tag, Typography} from "antd";
 import {CameraOutlined, CloseOutlined, ScanOutlined, UserOutlined} from "@ant-design/icons";
 import {motion} from "framer-motion";
 import {Scanner} from "@yudiel/react-qr-scanner";
@@ -9,6 +9,7 @@ const {Title, Text} = Typography;
 const {Search} = Input;
 
 function CheckInPage() {
+    const {message} = App.useApp();
     const [loading, setLoading] = useState(false);
     const [passengers, setPassengers] = useState([]);
     const [flightId, setFlightId] = useState("");
@@ -50,8 +51,7 @@ function CheckInPage() {
 
         try {
             const res = await api.post("/checkin/scan", {
-                booking_id: scanData.booking_id,
-                ticket_number: scanData.ticket_number
+                booking_id: scanData.booking_id, ticket_number: scanData.ticket_number
             });
             message.success(`✅ Checked in: ${res.data.passenger_name}`);
             setScanModalVisible(false);
@@ -88,7 +88,7 @@ function CheckInPage() {
             } catch (e) {
                 message.error("Invalid QR code format. Please use a valid ticket QR code.");
                 console.error("QR parsing error:", e);
-                return;
+
             }
         }
     };
@@ -110,79 +110,71 @@ function CheckInPage() {
         }
     };
 
-    const columns = [
-        {
-            title: "Passenger Name",
-            dataIndex: "passenger_name",
-            key: "passenger_name",
-            render: (text) => (
-                <Space>
-                    <UserOutlined/>
-                    {text}
-                </Space>
-            ),
-        },
-        {
-            title: "Ticket Number",
-            dataIndex: "ticket_number",
-            key: "ticket_number",
-        },
-        {
-            title: "Seat",
-            dataIndex: "seat_number",
-            key: "seat_number",
-            render: (seat) => seat ? <Tag color="blue">{seat}</Tag> : <Tag>Not Assigned</Tag>,
-        },
-        {
-            title: "Seat Type",
-            dataIndex: "seat_type",
-            key: "seat_type",
-        },
-        {
-            title: "Status",
-            dataIndex: "checked_in",
-            key: "checked_in",
-            render: (checkedIn) => (
-                checkedIn ?
-                    <Tag color="green">Checked In</Tag> :
-                    <Tag color="orange">Pending</Tag>
-            ),
-        },
-        {
-            title: "Actions",
-            key: "actions",
-            render: (_, record) => (
-                !record.checked_in && (
-                    <Button
-                        type="primary"
-                        size="small"
-                        onClick={() => handleCheckIn(record.ticket_number)}
-                    >
-                        Check In
-                    </Button>
-                )
-            ),
-        },
-    ];
+    const columns = [{
+        title: "Passenger Name",
+        dataIndex: "passenger_name",
+        key: "passenger_name",
+        width: 200,
+        render: (text) => (<Space>
+                <UserOutlined/>
+                <span className="text-sm">{text}</span>
+            </Space>),
+    }, {
+        title: "Ticket Number",
+        dataIndex: "ticket_number",
+        key: "ticket_number",
+        width: 150,
+        render: (text) => <span className="text-sm">{text}</span>,
+    }, {
+        title: "Seat",
+        dataIndex: "seat_number",
+        key: "seat_number",
+        width: 100,
+        render: (seat) => seat ? <Tag color="blue">{seat}</Tag> : <Tag>Not Assigned</Tag>,
+    }, {
+        title: "Seat Type",
+        dataIndex: "seat_type",
+        key: "seat_type",
+        width: 120,
+        render: (text) => <span className="text-sm">{text}</span>,
+    }, {
+        title: "Status",
+        dataIndex: "checked_in",
+        key: "checked_in",
+        width: 120,
+        render: (checkedIn) => (checkedIn ? <Tag color="green">Checked In</Tag> : <Tag color="orange">Pending</Tag>),
+    }, {
+        title: "Actions",
+        key: "actions",
+        width: 120,
+        fixed: 'right',
+        render: (_, record) => (!record.checked_in && (<Button
+                    type="primary"
+                    size="small"
+                    onClick={() => handleCheckIn(record.ticket_number)}
+                    block
+                >
+                    Check In
+                </Button>)),
+    },];
 
-    return (
-        <div className="min-h-screen bg-gray-100 p-6">
+    return (<div className="min-h-screen bg-gray-100 p-4 sm:p-6">
             <motion.div
                 initial={{opacity: 0, y: 20}}
                 animate={{opacity: 1, y: 0}}
                 transition={{duration: 0.6}}
             >
-                <Title level={2} className="!mb-8">
+                <Title level={2} className="!mb-6 sm:!mb-8 text-xl sm:text-2xl">
                     Check-in Management
                 </Title>
 
-                <Row gutter={[24, 24]}>
+                <Row gutter={[16, 16]}>
                     <Col xs={24} lg={8}>
                         <Card className="h-full">
                             <div className="text-center">
-                                <ScanOutlined className="text-4xl text-green-500 mb-4"/>
-                                <Title level={4}>QR Code Scanner</Title>
-                                <Text type="secondary" className="block mb-6">
+                                <ScanOutlined className="text-3xl sm:text-4xl text-green-500 mb-4"/>
+                                <Title level={4} className="text-base sm:text-lg">QR Code Scanner</Title>
+                                <Text type="secondary" className="block mb-4 sm:mb-6 text-sm">
                                     Scan passenger tickets for quick check-in
                                 </Text>
                                 <Button
@@ -194,7 +186,7 @@ function CheckInPage() {
                                         setCameraError(false);
                                         setIsPaused(false);
                                     }}
-                                    className="w-full"
+                                    block
                                 >
                                     Start QR Scanner
                                 </Button>
@@ -204,10 +196,10 @@ function CheckInPage() {
 
                     <Col xs={24} lg={16}>
                         <Card>
-                            <Title level={4} className="!mb-4">
+                            <Title level={4} className="!mb-4 text-base sm:text-lg">
                                 Flight Passengers
                             </Title>
-                            <div className="mb-6">
+                            <div className="mb-4 sm:mb-6">
                                 <Search
                                     placeholder="Enter flight number (e.g., FA001)"
                                     enterButton="Load Passengers"
@@ -224,9 +216,9 @@ function CheckInPage() {
                                 dataSource={passengers}
                                 rowKey="ticket_number"
                                 loading={loading}
+                                scroll={{x: 900}}
                                 pagination={{
-                                    pageSize: 10,
-                                    showSizeChanger: false,
+                                    pageSize: 10, showSizeChanger: false, responsive: true,
                                 }}
                                 locale={{
                                     emptyText: "No passengers loaded. Enter a flight number above."
@@ -237,12 +229,10 @@ function CheckInPage() {
                 </Row>
 
                 <Modal
-                    title={
-                        <Space>
-                            <CameraOutlined/>
-                            QR Code Scanner
-                        </Space>
-                    }
+                    title={<Space>
+                        <CameraOutlined/>
+                        <span className="text-base sm:text-lg">QR Code Scanner</span>
+                    </Space>}
                     open={scanModalVisible}
                     onCancel={() => {
                         setScanModalVisible(false);
@@ -253,18 +243,16 @@ function CheckInPage() {
                     }}
                     footer={null}
                     width={600}
+                    className="max-w-full mx-4"
                     centered
                 >
                     <div className="py-4">
-                        {!manualInput ? (
-                            <>
+                        {!manualInput ? (<>
                                 <div className="relative bg-black rounded-lg overflow-hidden mb-4">
-                                    {scanning && (
-                                        <div
+                                    {scanning && (<div
                                             className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
                                             <Spin size="large" tip="Processing..."/>
-                                        </div>
-                                    )}
+                                        </div>)}
 
                                     <Scanner
                                         onScan={handleScan}
@@ -272,70 +260,64 @@ function CheckInPage() {
                                         paused={isPaused}
                                         styles={{
                                             container: {
-                                                width: '100%',
-                                                height: '400px',
-                                                position: 'relative'
-                                            },
-                                            video: {
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'cover'
+                                                width: '100%', height: '300px', position: 'relative'
+                                            }, video: {
+                                                width: '100%', height: '100%', objectFit: 'cover'
                                             }
                                         }}
                                         components={{
-                                            audio: false,
-                                            finder: true,
-                                            tracker: true
+                                            audio: false, finder: true, tracker: true
                                         }}
                                         options={{
-                                            delayBetweenScanAttempts: 500,
-                                            delayBetweenScanSuccess: 500
+                                            delayBetweenScanAttempts: 500, delayBetweenScanSuccess: 500
                                         }}
                                     />
                                 </div>
 
                                 {cameraError && (
                                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-                                        <Text type="warning">
+                                        <Text type="warning" className="text-sm">
                                             Camera access may be restricted. Please check your browser permissions.
                                         </Text>
-                                    </div>
-                                )}
+                                    </div>)}
 
                                 <div className="text-center">
-                                    <Text type="secondary" className="block mb-2">
+                                    <Text type="secondary" className="block mb-2 text-sm">
                                         Position the QR code within the frame
                                     </Text>
                                     <Button
                                         type="link"
                                         onClick={() => setManualInput(true)}
                                         icon={<CloseOutlined/>}
+                                        className="text-sm"
                                     >
                                         Enter ticket number manually
                                     </Button>
                                 </div>
-                            </>
-                        ) : (
-                            <div>
-                                <Text className="block mb-4">
+                            </>) : (<div>
+                                <Text className="block mb-4 text-sm sm:text-base">
                                     Enter the ticket number manually:
                                 </Text>
-                                <Space.Compact style={{width: '100%'}} size="large">
+                                <div className="flex flex-col sm:flex-row gap-2">
                                     <Input
                                         placeholder="Ticket Number (e.g., TK-123456)"
                                         value={ticketNumber}
                                         onChange={(e) => setTicketNumber(e.target.value)}
                                         onPressEnter={handleManualSubmit}
                                         disabled={scanning}
+                                        size="large"
+                                        className="flex-1"
                                     />
                                     <Button
                                         type="primary"
                                         onClick={handleManualSubmit}
                                         loading={scanning}
+                                        size="large"
+                                        className="w-full sm:w-auto"
                                     >
                                         Check In
                                     </Button>
-                                </Space.Compact>
+                                </div>
 
                                 <div className="text-center mt-4">
                                     <Button
@@ -345,17 +327,16 @@ function CheckInPage() {
                                             setTicketNumber("");
                                         }}
                                         icon={<CameraOutlined/>}
+                                        className="text-sm"
                                     >
                                         Back to camera scanner
                                     </Button>
                                 </div>
-                            </div>
-                        )}
+                            </div>)}
                     </div>
                 </Modal>
             </motion.div>
-        </div>
-    );
+        </div>);
 }
 
 export default CheckInPage;

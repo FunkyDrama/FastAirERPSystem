@@ -16,14 +16,12 @@ function PaymentButton({bookingId, className = ""}) {
         }
     };
 
-    return (
-        <button
-            onClick={handlePay}
-            className={`bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded ${className}`}
-        >
-            Pay
-        </button>
-    );
+    return (<button
+        onClick={handlePay}
+        className={`bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md ${className}`}
+    >
+        Pay
+    </button>);
 }
 
 export default PaymentButton;

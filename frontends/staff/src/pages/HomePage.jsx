@@ -11,24 +11,18 @@ const {Title, Paragraph} = Typography;
 function HomePage() {
 
     const containerVariants = {
-        hidden: {opacity: 0},
-        visible: {
-            opacity: 1,
-            transition: {staggerChildren: 0.1}
+        hidden: {opacity: 0}, visible: {
+            opacity: 1, transition: {staggerChildren: 0.1}
         }
     };
 
     const cardVariants = {
-        hidden: {opacity: 0, y: 20},
-        visible: {
-            opacity: 1,
-            y: 0,
-            transition: {duration: 0.5}
+        hidden: {opacity: 0, y: 20}, visible: {
+            opacity: 1, y: 0, transition: {duration: 0.5}
         }
     };
 
-    return (
-        <div className="min-h-screen bg-gray-100">
+    return (<div className="min-h-screen bg-gray-100">
             <div
                 className="relative bg-cover bg-center bg-fixed"
                 style={{backgroundImage: "url('/background.jpg')"}}
@@ -61,7 +55,7 @@ function HomePage() {
                                     <Card
                                         hoverable
                                         className="h-full border-0 shadow-lg"
-                                        bodyStyle={{padding: '24px'}}
+                                        styles={{body: {padding: '24px'}}}
                                     >
                                         <div className="text-center">
                                             <div className="mb-4">
@@ -91,7 +85,7 @@ function HomePage() {
                                     <Card
                                         hoverable
                                         className="h-full border-0 shadow-lg"
-                                        bodyStyle={{padding: '24px'}}
+                                        styles={{body: {padding: '24px'}}}
                                     >
                                         <div className="text-center">
                                             <div className="mb-4">
@@ -121,7 +115,7 @@ function HomePage() {
                                     <Card
                                         hoverable
                                         className="h-full border-0 shadow-lg"
-                                        bodyStyle={{padding: '24px'}}
+                                        styles={{body: {padding: '24px'}}}
                                     >
                                         <div className="text-center">
                                             <div className="mb-4">
@@ -161,8 +155,7 @@ function HomePage() {
                     </Row>
                 </motion.div>
             </div>
-        </div>
-    );
+        </div>);
 }
 
 export default HomePage;

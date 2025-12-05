@@ -1,11 +1,12 @@
 import React, {useEffect, useState} from "react";
-import {Button, Checkbox, DatePicker, Form, Input, InputNumber, message, Modal, Select, Table, Tag,} from "antd";
+import {App, Button, Card, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Select, Table, Tag,} from "antd";
 import dayjs from "dayjs";
 import api from "../utils/api.js";
 import {airportLabel, AIRPORTS} from "../utils/airports";
 import {optionLabel} from "../utils/options";
 
 function BookingPage() {
+    const {message} = App.useApp();
     const [loading, setLoading] = useState(false);
     const [flights, setFlights] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
@@ -14,6 +15,7 @@ function BookingPage() {
     const [options, setOptions] = useState([]);
     const [passengerCount, setPassengerCount] = useState(1);
     const [form] = Form.useForm();
+    const [searchForm] = Form.useForm();
 
     useEffect(() => {
         const loadSeatTypes = async () => {
@@ -32,10 +34,10 @@ function BookingPage() {
         try {
             const res = await api.get("/flights/search", {
                 params: {
-                    origin: values.origin,
-                    destination: values.destination,
+                    origin: values.origin || undefined,
+                    destination: values.destination || undefined,
                     date: values.date ? values.date.format("YYYY-MM-DD") : undefined,
-                    passengers: values.passengers,
+                    passengers: values.passengers || undefined,
                 },
             });
             setFlights(res.data);
@@ -65,17 +67,14 @@ function BookingPage() {
             const payload = {
                 flight_id: selectedFlight.flight_id,
                 passengers: values.passengers.map((p) => ({
-                    first_name: p.first_name,
-                    last_name: p.last_name,
+                    first_name: p.first_name, last_name: p.last_name,
                 })),
                 seat_type_name: values.seat_type_name,
                 discount_code: values.discount_code || null,
                 lock_price: true,
-                options:
-                    values.options?.map((opt) => ({
-                        option_id: opt,
-                        qty: 1,
-                    })) || [],
+                options: values.options?.map((opt) => ({
+                    option_id: opt, qty: 1,
+                })) || [],
                 per_passenger_options: true,
             };
             const bookingRes = await api.post("/bookings", payload);
@@ -83,115 +82,137 @@ function BookingPage() {
             const paymentRes = await api.post(`/payments/${booking.booking_id}/intent`);
             const {url} = paymentRes.data;
             window.location.href = url;
-
         } catch (err) {
             console.error(err);
             message.error("Failed to create booking or start payment");
         }
     };
 
-
-    const columns = [
-        {
-            title: "Flight",
-            dataIndex: "flight_number",
-            key: "flight_number",
-        },
-        {
-            title: "From",
-            dataIndex: "origin",
-            key: "origin",
-            render: (code) => airportLabel(code),
-        },
-        {
-            title: "To",
-            dataIndex: "destination",
-            key: "destination",
-            render: (code) => airportLabel(code),
-        },
-        {
-            title: "Departure",
-            dataIndex: "departure_time",
-            key: "departure_time",
-            render: (text) => dayjs(text).format("YYYY-MM-DD HH:mm"),
-        },
-        {
-            title: "Arrival",
-            dataIndex: "arrival_time",
-            key: "arrival_time",
-            render: (text) => dayjs(text).format("YYYY-MM-DD HH:mm"),
-        },
-        {
-            title: "Status",
-            dataIndex: "status",
-            key: "status",
-            render: (status) => (
-                <Tag color={status === "SCHEDULED"?.toLowerCase() ? "green" : "volcano"}>{status}</Tag>
-            ),
-        },
-        {
-            title: "Action",
-            key: "action",
-            render: (_, record) => (
-                <Button type="primary" onClick={() => openBookingModal(record)}>
-                    Book
-                </Button>
-            ),
-        },
-    ];
-
-    return (
-        <div className="p-6 bg-gray-100 h-screen">
-            <h2 className="text-2xl font-semibold mb-6">Search Flights</h2>
-            <Form
-                layout="inline"
-                onFinish={searchFlights}
-                className="flex flex-wrap gap-4 !mb-6"
+    const columns = [{
+        title: "Flight", dataIndex: "flight_number", key: "flight_number", width: 120,
+    }, {
+        title: "From", dataIndex: "origin", key: "origin", render: (code) => airportLabel(code), width: 150,
+    }, {
+        title: "To", dataIndex: "destination", key: "destination", render: (code) => airportLabel(code), width: 150,
+    }, {
+        title: "Departure",
+        dataIndex: "departure_time",
+        key: "departure_time",
+        render: (text) => dayjs(text).format("YYYY-MM-DD HH:mm"),
+        width: 160,
+    }, {
+        title: "Arrival",
+        dataIndex: "arrival_time",
+        key: "arrival_time",
+        render: (text) => dayjs(text).format("YYYY-MM-DD HH:mm"),
+        width: 160,
+    }, {
+        title: "Status", dataIndex: "status", key: "status", width: 120, render: (status) => (<Tag
+                color={status === "SCHEDULED"?.toLowerCase() ? "green" : "volcano"}
             >
-                <Form.Item
-                    name="origin"
-                    label="From"
+                {status}
+            </Tag>),
+    }, {
+        title: "Action", key: "action", fixed: "right", width: 100, render: (_, record) => (<Button
+                type="primary"
+                size="small"
+                onClick={() => openBookingModal(record)}
+                block
+            >
+                Book
+            </Button>),
+    },];
+
+    return (<div className="p-4 sm:p-6 lg:p-8 bg-gray-100 min-h-screen">
+            <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6">
+                Search Flights
+            </h2>
+
+            <Card className="mb-6">
+                <Form
+                    form={searchForm}
+                    layout="vertical"
+                    onFinish={searchFlights}
                 >
-                    <Select style={{width: 200}}>
-                        {Object.entries(AIRPORTS).map(([code]) => (
-                            <Select.Option key={code} value={code}>
-                                {airportLabel(code)}
-                            </Select.Option>
-                        ))}
-                    </Select>
-                </Form.Item>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <Form.Item
+                            name="origin"
+                            label="From"
+                        >
+                            <Select
+                                placeholder="Any airport"
+                                size="large"
+                                showSearch
+                                allowClear
+                                filterOption={(input, option) => option.children
+                                    .toLowerCase()
+                                    .includes(input.toLowerCase())}
+                            >
+                                {Object.entries(AIRPORTS).map(([code]) => (<Select.Option key={code} value={code}>
+                                        {airportLabel(code)}
+                                    </Select.Option>))}
+                            </Select>
+                        </Form.Item>
 
-                <Form.Item
-                    name="destination"
-                    label="To"
-                >
-                    <Select style={{width: 200}}>
-                        {Object.entries(AIRPORTS).map(([code]) => (
-                            <Select.Option key={code} value={code}>
-                                {airportLabel(code)}
-                            </Select.Option>
-                        ))}
-                    </Select>
-                </Form.Item>
+                        <Form.Item
+                            name="destination"
+                            label="To"
+                        >
+                            <Select
+                                placeholder="Any airport"
+                                size="large"
+                                showSearch
+                                allowClear
+                                filterOption={(input, option) => option.children
+                                    .toLowerCase()
+                                    .includes(input.toLowerCase())}
+                            >
+                                {Object.entries(AIRPORTS).map(([code]) => (<Select.Option key={code} value={code}>
+                                        {airportLabel(code)}
+                                    </Select.Option>))}
+                            </Select>
+                        </Form.Item>
 
-                <Form.Item name="date" label="Date">
-                    <DatePicker/>
-                </Form.Item>
+                        <Form.Item name="date" label="Date">
+                            <DatePicker
+                                className="w-full"
+                                size="large"
+                                placeholder="Any date"
+                            />
+                        </Form.Item>
 
-                <Form.Item>
-                    <Button type="primary" htmlType="submit" loading={loading}>
-                        Search
-                    </Button>
-                </Form.Item>
-            </Form>
+                        <Form.Item label="&nbsp;">
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                loading={loading}
+                                size="large"
+                                block
+                            >
+                                Search Flights
+                            </Button>
+                        </Form.Item>
+                    </div>
 
-            <Table
-                rowKey="flight_id"
-                columns={columns}
-                dataSource={flights}
-                loading={loading}
-                pagination={false}
-            />
+                    <div className="mt-2 text-sm text-gray-500">
+                        💡 Leave fields empty to see all available flights
+                    </div>
+                </Form>
+            </Card>
+
+            <Card>
+                <Table
+                    rowKey="flight_id"
+                    columns={columns}
+                    dataSource={flights}
+                    loading={loading}
+                    pagination={false}
+                    scroll={{x: 1000}}
+                    locale={{
+                        emptyText: loading ? "Searching flights..." : "No flights found. Try different search criteria or click 'Search Flights' to see all.",
+                    }}
+                />
+            </Card>
 
             <Modal
                 open={modalVisible}
@@ -200,7 +221,11 @@ function BookingPage() {
                     form.resetFields();
                 }}
                 onOk={() => form.submit()}
-                title={`Booking flight ${selectedFlight?.flight_number}`}
+                title={<span className="text-lg font-semibold">
+                        Booking flight {selectedFlight?.flight_number}
+                    </span>}
+                width={600}
+                className="max-w-full mx-4"
             >
                 <Form form={form} layout="vertical" onFinish={handleBooking}>
                     <Form.Item label="Number of passengers">
@@ -209,63 +234,65 @@ function BookingPage() {
                             max={9}
                             value={passengerCount}
                             onChange={setPassengerCount}
+                            size="large"
+                            className="w-full"
                         />
                     </Form.Item>
 
-                    {Array.from({length: passengerCount}).map((_, i) => (
-                        <div
+                    {Array.from({length: passengerCount}).map((_, i) => (<div
                             key={i}
-                            className="border border-gray-200 rounded-md p-4 mb-4"
+                            className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50"
                         >
-                            <h4 className="font-medium mb-2">Passenger {i + 1}</h4>
+                            <h4 className="font-medium mb-3 text-gray-700">
+                                Passenger {i + 1}
+                            </h4>
                             <Form.Item
                                 name={["passengers", i, "first_name"]}
                                 label="First name"
-                                rules={[{required: true, message: "Please enter first name"}]}
+                                rules={[{required: true, message: "Enter first name"},]}
                             >
-                                <Input/>
+                                <Input size="large" placeholder="John"/>
                             </Form.Item>
                             <Form.Item
                                 name={["passengers", i, "last_name"]}
                                 label="Last name"
-                                rules={[{required: true, message: "Please enter last name"}]}
+                                rules={[{required: true, message: "Enter last name"}]}
                             >
-                                <Input/>
+                                <Input size="large" placeholder="Doe"/>
                             </Form.Item>
-                        </div>
-                    ))}
+                        </div>))}
 
                     <Form.Item
                         name="seat_type_name"
                         label="Seat class"
-                        rules={[{required: true, message: "Please select seat class"}]}
+                        rules={[{required: true, message: "Select seat class"}]}
                     >
-                        <Select>
-                            {seatTypes.map((st) => (
-                                <Select.Option key={st.type_name} value={st.type_name}>
+                        <Select size="large" placeholder="Select class">
+                            {seatTypes.map((st) => (<Select.Option key={st.type_name} value={st.type_name}>
                                     {st.description}
-                                </Select.Option>
-                            ))}
+                                </Select.Option>))}
                         </Select>
                     </Form.Item>
 
                     <Form.Item name="options" label="Extra options">
                         <Checkbox.Group className="flex flex-col gap-2">
-                            {options.map((opt) => (
-                                <Checkbox key={opt.option_id} value={opt.option_id}>
-                                    {optionLabel(opt.name)} (+${opt.price})
-                                </Checkbox>
-                            ))}
+                            {options.map((opt) => (<Checkbox key={opt.option_id} value={opt.option_id}>
+                                    <span className="text-sm sm:text-base">
+                                        {optionLabel(opt.name)} (+${opt.price})
+                                    </span>
+                                </Checkbox>))}
                         </Checkbox.Group>
                     </Form.Item>
 
                     <Form.Item name="discount_code" label="Discount code">
-                        <Input placeholder="Enter discount code (optional)"/>
+                        <Input
+                            size="large"
+                            placeholder="Enter discount code (optional)"
+                        />
                     </Form.Item>
                 </Form>
             </Modal>
-        </div>
-    );
+        </div>);
 }
 
 export default BookingPage;

@@ -1,5 +1,6 @@
 import React from "react";
 import {Route, Routes} from "react-router-dom";
+import {App as AntApp} from "antd";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import Header from "./components/Header.jsx";
 
@@ -11,34 +12,47 @@ import SupervisorFlightsPage from "./pages/SupervisorFlightsPage.jsx";
 import SupervisorStaffPage from "./pages/SupervisorStaffPage.jsx";
 import SupervisorRevenuePage from "./pages/SupervisorRevenuePage.jsx";
 import {ROLES} from "./utils/roles.js";
+import ResponsiveLayout from "./components/ResponsiveLayout.jsx";
 
 export default function App() {
     return (
-        <div className="flex flex-col min-h-screen">
-            <Header/>
-            <main className="flex-1">
-                <Routes>
-                    <Route path="/login" element={<LoginPage/>}/>
+        <AntApp
+            message={{
+                maxCount: 3,
+                duration: 3,
+            }}
+            notification={{
+                maxCount: 3,
+            }}
+        >
+            <ResponsiveLayout>
+                <div className="flex flex-col min-h-screen">
+                    <Header/>
+                    <main className="flex-1">
+                        <Routes>
+                            <Route path="/login" element={<LoginPage/>}/>
 
-                    <Route element={<ProtectedRoute/>}>
-                        <Route path="/" element={<HomePage/>}/>
-                    </Route>
+                            <Route element={<ProtectedRoute/>}>
+                                <Route path="/" element={<HomePage/>}/>
+                            </Route>
 
-                    <Route element={<ProtectedRoute roles={[ROLES.CHECKIN]}/>}>
-                        <Route path="/checkin" element={<CheckInPage/>}/>
-                    </Route>
+                            <Route element={<ProtectedRoute roles={[ROLES.CHECKIN]}/>}>
+                                <Route path="/checkin" element={<CheckInPage/>}/>
+                            </Route>
 
-                    <Route element={<ProtectedRoute roles={[ROLES.GATE]}/>}>
-                        <Route path="/gate" element={<GatePage/>}/>
-                    </Route>
+                            <Route element={<ProtectedRoute roles={[ROLES.GATE]}/>}>
+                                <Route path="/gate" element={<GatePage/>}/>
+                            </Route>
 
-                    <Route element={<ProtectedRoute roles={[ROLES.SUPERVISOR]}/>}>
-                        <Route path="/supervisor/flights" element={<SupervisorFlightsPage/>}/>
-                        <Route path="/supervisor/staff" element={<SupervisorStaffPage/>}/>
-                        <Route path="/supervisor/revenue" element={<SupervisorRevenuePage/>}/>
-                    </Route>
-                </Routes>
-            </main>
-        </div>
+                            <Route element={<ProtectedRoute roles={[ROLES.SUPERVISOR]}/>}>
+                                <Route path="/supervisor/flights" element={<SupervisorFlightsPage/>}/>
+                                <Route path="/supervisor/staff" element={<SupervisorStaffPage/>}/>
+                                <Route path="/supervisor/revenue" element={<SupervisorRevenuePage/>}/>
+                            </Route>
+                        </Routes>
+                    </main>
+                </div>
+            </ResponsiveLayout>
+        </AntApp>
     );
 }

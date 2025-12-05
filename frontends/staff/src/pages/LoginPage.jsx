@@ -16,8 +16,7 @@ function LoginPage() {
     const handleSubmit = async (values) => {
         try {
             await login({
-                email: values.email,
-                password: values.password,
+                email: values.email, password: values.password,
             });
             navigate("/");
         } catch {
@@ -25,8 +24,7 @@ function LoginPage() {
         }
     };
 
-    return (
-        <div
+    return (<div
             className="min-h-screen flex items-center justify-center bg-cover bg-center bg-fixed relative"
             style={{backgroundImage: "url('/background.jpg')"}}
         >
@@ -48,8 +46,7 @@ function LoginPage() {
                         </Text>
                     </div>
 
-                    {error && (
-                        <motion.div
+                    {error && (<motion.div
                             initial={{opacity: 0, height: 0}}
                             animate={{opacity: 1, height: "auto"}}
                             className="mb-6"
@@ -60,8 +57,7 @@ function LoginPage() {
                                 showIcon
                                 className="rounded-lg"
                             />
-                        </motion.div>
-                    )}
+                        </motion.div>)}
 
                     <Form
                         name="staffLogin"
@@ -72,10 +68,10 @@ function LoginPage() {
                     >
                         <Form.Item
                             name="email"
-                            rules={[
-                                {required: true, message: "Please input your email!"},
-                                {type: "email", message: "Please enter a valid email!"}
-                            ]}
+                            rules={[{required: true, message: "Please input your email!"}, {
+                                type: "email",
+                                message: "Please enter a valid email!"
+                            }]}
                         >
                             <Input
                                 prefix={<UserOutlined className="text-gray-400"/>}
@@ -124,8 +120,7 @@ function LoginPage() {
                     </div>
                 </div>
             </motion.div>
-        </div>
-    );
+        </div>);
 }
 
 export default LoginPage;

@@ -11,7 +11,7 @@ import ResponsiveLayout from "./components/ResponsiveLayout.jsx";
 import {App as AntApp} from "antd";
 
 function App() {
-    return (<AntApp
+    return <AntApp
         message={{
             maxCount: 3, duration: 3,
         }}
@@ -34,8 +34,8 @@ function App() {
                     </Routes>
                 </main>
             </div>
-        </ResponsiveLayout>)
-    </AntApp>)
+        </ResponsiveLayout>
+    </AntApp>
 }
 
 export default App;

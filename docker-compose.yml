@@ -202,7 +202,7 @@ services:
     container_name: fastair_frontend_users
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3002:80"
+      - "3002:80"
     depends_on:
       - users
     networks:
@@ -220,7 +220,7 @@ services:
     container_name: fastair_frontend_staff
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3003:80"
+      - "3003:80"
     depends_on:
       - staff
     networks:

@@ -201,24 +201,12 @@ services:
       dockerfile: Dockerfile
     container_name: fastair_frontend_users
     restart: unless-stopped
+    ports:
+      - "3002:80"
     depends_on:
       - users
     networks:
-      - web
       - internal
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=web"
-      - "traefik.http.routers.fastair-users-https.rule=Host(`fastair.danielkravchenko.dev`)"
-      - "traefik.http.routers.fastair-users-https.entrypoints=websecure"
-      - "traefik.http.routers.fastair-users-https.tls=true"
-      - "traefik.http.routers.fastair-users-https.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.fastair-users-http.rule=Host(`fastair.danielkravchenko.dev`)"
-      - "traefik.http.routers.fastair-users-http.entrypoints=web"
-      - "traefik.http.routers.fastair-users-http.middlewares=fastair-users-redirect@docker"
-      - "traefik.http.middlewares.fastair-users-redirect.redirectscheme.scheme=https"
-      - "traefik.http.middlewares.fastair-users-redirect.redirectscheme.permanent=true"
-      - "traefik.http.services.fastair-users.loadbalancer.server.port=80"
     deploy:
       resources:
         limits:
@@ -231,24 +219,12 @@ services:
       dockerfile: Dockerfile
     container_name: fastair_frontend_staff
     restart: unless-stopped
+    ports:
+      - "3003:80"
     depends_on:
       - staff
     networks:
-      - web
       - internal
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=web"
-      - "traefik.http.routers.fastair-staff-https.rule=Host(`staff.fastair.danielkravchenko.dev`)"
-      - "traefik.http.routers.fastair-staff-https.entrypoints=websecure"
-      - "traefik.http.routers.fastair-staff-https.tls=true"
-      - "traefik.http.routers.fastair-staff-https.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.fastair-staff-http.rule=Host(`staff.fastair.danielkravchenko.dev`)"
-      - "traefik.http.routers.fastair-staff-http.entrypoints=web"
-      - "traefik.http.routers.fastair-staff-http.middlewares=fastair-staff-redirect@docker"
-      - "traefik.http.middlewares.fastair-staff-redirect.redirectscheme.scheme=https"
-      - "traefik.http.middlewares.fastair-staff-redirect.redirectscheme.permanent=true"
-      - "traefik.http.services.fastair-staff.loadbalancer.server.port=80"
     deploy:
       resources:
         limits:
@@ -278,14 +254,12 @@ services:
       sh -c "
         SQLALCHEMY_DATABASE_URL=$${USERS_DATABASE_URL} alembic -c services/users_service/app/alembic.ini upgrade head &&
         SQLALCHEMY_DATABASE_URL=$${STAFF_DATABASE_URL} alembic -c services/staff_service/app/alembic.ini upgrade head &&
-        python -m scripts.cli seed --db all --flush --flights 60 --days 14
+        python -m scripts.cli seed --db all --flush --flights 1000 --days 365
       "
     restart: "no"
     profiles: ["seed"]
 
 networks:
-  web:
-    external: true
   internal:
     driver: bridge
     name: fastair_internal

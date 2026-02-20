@@ -1,14 +1,18 @@
-import React, {useEffect, useState} from "react";
-import {App, Button, Card, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Select, Table, Tag,} from "antd";
+import React, {useEffect, useRef, useState} from "react";
+import {App, Button, Card, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Select, Spin, Table, Tag,} from "antd";
 import dayjs from "dayjs";
 import api from "../utils/api.js";
 import {airportLabel, AIRPORTS} from "../utils/airports";
 import {optionLabel} from "../utils/options";
 
+const PAGE_SIZE = 20;
+
 function BookingPage() {
     const {message} = App.useApp();
     const [loading, setLoading] = useState(false);
     const [flights, setFlights] = useState([]);
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedFlight, setSelectedFlight] = useState(null);
     const [seatTypes, setSeatTypes] = useState([]);
@@ -16,6 +20,13 @@ function BookingPage() {
     const [passengerCount, setPassengerCount] = useState(1);
     const [form] = Form.useForm();
     const [searchForm] = Form.useForm();
+
+    const sentinelRef = useRef(null);
+    const searchParamsRef = useRef(null);
+    const offsetRef = useRef(0);
+    const hasMoreRef = useRef(false);
+    const loadingMoreRef = useRef(false);
+    const loadingRef = useRef(false);
 
     useEffect(() => {
         const loadSeatTypes = async () => {
@@ -29,22 +40,70 @@ function BookingPage() {
         loadSeatTypes();
     }, []);
 
+    // Setup IntersectionObserver once; loadMore is always called via ref
+    useEffect(() => {
+        const sentinel = sentinelRef.current;
+        if (!sentinel) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) loadMoreViaRef();
+            },
+            {rootMargin: "200px"},
+        );
+        observer.observe(sentinel);
+        return () => observer.disconnect();
+    }, []);
+
+    const loadMoreViaRef = () => {
+        if (!searchParamsRef.current || !hasMoreRef.current || loadingMoreRef.current || loadingRef.current) return;
+
+        loadingMoreRef.current = true;
+        setLoadingMore(true);
+
+        api.get("/flights/search", {
+            params: {...searchParamsRef.current, offset: offsetRef.current},
+        }).then((res) => {
+            setFlights((prev) => [...prev, ...res.data]);
+            offsetRef.current += res.data.length;
+            const more = res.data.length === PAGE_SIZE;
+            hasMoreRef.current = more;
+            setHasMore(more);
+        }).catch(() => {
+            message.error("Failed to load more flights");
+        }).finally(() => {
+            loadingMoreRef.current = false;
+            setLoadingMore(false);
+        });
+    };
+
     const searchFlights = async (values) => {
         setLoading(true);
+        loadingRef.current = true;
+
+        const params = {
+            origin: values.origin || undefined,
+            destination: values.destination || undefined,
+            date: values.date ? values.date.format("YYYY-MM-DD") : undefined,
+            passengers: values.passengers || undefined,
+            limit: PAGE_SIZE,
+            offset: 0,
+        };
+        searchParamsRef.current = params;
+        offsetRef.current = 0;
+
         try {
-            const res = await api.get("/flights/search", {
-                params: {
-                    origin: values.origin || undefined,
-                    destination: values.destination || undefined,
-                    date: values.date ? values.date.format("YYYY-MM-DD") : undefined,
-                    passengers: values.passengers || undefined,
-                },
-            });
+            const res = await api.get("/flights/search", {params});
             setFlights(res.data);
+            offsetRef.current = res.data.length;
+            const more = res.data.length === PAGE_SIZE;
+            hasMoreRef.current = more;
+            setHasMore(more);
         } catch {
             message.error("Failed to search flights");
         } finally {
             setLoading(false);
+            loadingRef.current = false;
         }
     };
 
@@ -212,6 +271,17 @@ function BookingPage() {
                         emptyText: loading ? "Searching flights..." : "No flights found. Try different search criteria or click 'Search Flights' to see all.",
                     }}
                 />
+                <div ref={sentinelRef}/>
+                {loadingMore && (
+                    <div className="flex justify-center py-4">
+                        <Spin/>
+                    </div>
+                )}
+                {!hasMore && flights.length > 0 && (
+                    <div className="text-center py-3 text-gray-400 text-sm">
+                        All flights loaded
+                    </div>
+                )}
             </Card>
 
             <Modal

@@ -166,20 +166,26 @@ function BookingPage() {
         render: (text) => dayjs(text).format("YYYY-MM-DD HH:mm"),
         width: 160,
     }, {
-        title: "Status", dataIndex: "status", key: "status", width: 120, render: (status) => (<Tag
-                color={status === "SCHEDULED"?.toLowerCase() ? "green" : "volcano"}
-            >
-                {status}
-            </Tag>),
+        title: "Status", dataIndex: "status", key: "status", width: 120, render: (status) => {
+            const s = status?.toLowerCase();
+            const color = s === "scheduled" ? "green" : s === "completed" ? "blue" : "volcano";
+            return <Tag color={color}>{status?.toUpperCase()}</Tag>;
+        },
     }, {
-        title: "Action", key: "action", fixed: "right", width: 100, render: (_, record) => (<Button
-                type="primary"
-                size="small"
-                onClick={() => openBookingModal(record)}
-                block
-            >
-                Book
-            </Button>),
+        title: "Action", key: "action", fixed: "right", width: 100, render: (_, record) => {
+            const isScheduled = record.status?.toLowerCase() === "scheduled";
+            return (
+                <Button
+                    type="primary"
+                    size="small"
+                    onClick={() => openBookingModal(record)}
+                    block
+                    disabled={!isScheduled}
+                >
+                    Book
+                </Button>
+            );
+        },
     },];
 
     return (<div className="p-4 sm:p-6 lg:p-8 bg-gray-100 min-h-screen">

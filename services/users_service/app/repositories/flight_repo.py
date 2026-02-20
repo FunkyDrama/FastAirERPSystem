@@ -55,7 +55,12 @@ class FlightRepository:
         limit: int = 50,
         offset: int = 0,
     ) -> Sequence[FlightRef]:
-        stmt = select(FlightRef).where(FlightRef.status == FlightStatus.SCHEDULED)
+        now = dt.datetime.now(tz=dt.timezone.utc)
+        stmt = (
+            select(FlightRef)
+            .where(FlightRef.status == FlightStatus.SCHEDULED)
+            .where(FlightRef.departure_time > now)
+        )
 
         if origin:
             stmt = stmt.where(FlightRef.origin.ilike(origin))

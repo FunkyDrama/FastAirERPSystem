@@ -1,7 +1,8 @@
 import uuid
 from collections.abc import Sequence
+from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.staff_service.app.db.models.flight import Flight, FlightStatus
@@ -33,6 +34,29 @@ class FlightRepository:
         flight = res.scalar_one_or_none()
         flight.status = FlightStatus.CANCELED
         await self.session.flush()
+
+    async def complete_overdue_flights(self) -> list[uuid.UUID]:
+        """Mark scheduled flights whose departure time has passed as COMPLETED.
+
+        Returns list of flight_ids that were updated.
+        """
+        now = datetime.now(timezone.utc)
+        id_stmt = (
+            select(Flight.flight_id)
+            .where(Flight.status == FlightStatus.SCHEDULED)
+            .where(Flight.departure_time < now)
+        )
+        res = await self.session.execute(id_stmt)
+        flight_ids = list(res.scalars().all())
+        if flight_ids:
+            upd_stmt = (
+                update(Flight)
+                .where(Flight.flight_id.in_(flight_ids))
+                .values(status=FlightStatus.COMPLETED)
+            )
+            await self.session.execute(upd_stmt)
+            await self.session.flush()
+        return flight_ids
 
     async def get_all_flights(self) -> Sequence[Flight]:
         res = await self.session.execute(select(Flight))

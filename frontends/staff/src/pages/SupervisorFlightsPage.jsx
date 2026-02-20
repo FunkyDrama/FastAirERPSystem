@@ -14,7 +14,7 @@ import {
     Tag,
     Typography
 } from "antd";
-import {DeleteOutlined, PlusOutlined, RocketOutlined, SettingOutlined} from "@ant-design/icons";
+import {CloseCircleOutlined, PlusOutlined, RocketOutlined, SettingOutlined} from "@ant-design/icons";
 import {motion} from "framer-motion";
 import dayjs from "dayjs";
 import api from "../utils/api.js";
@@ -95,6 +95,16 @@ function SupervisorFlightsPage() {
         }
     };
 
+    const handleCancelFlight = async (flightId) => {
+        try {
+            await api.patch(`/supervisor/flights/${flightId}/cancel`);
+            message.success("Flight cancelled successfully");
+            loadFlights();
+        } catch (err) {
+            message.error("Failed to cancel flight");
+        }
+    };
+
     const columns = [{
         title: "Flight Number", dataIndex: "flight_number", key: "flight_number", width: 150, render: (text) => (<Space>
             <RocketOutlined/>
@@ -118,21 +128,34 @@ function SupervisorFlightsPage() {
         render: (time) => <span className="text-sm">{dayjs(time).format("YYYY-MM-DD HH:mm")}</span>,
     }, {
         title: "Status", dataIndex: "status", key: "status", width: 120, render: (status) => {
-            const color = status === "SCHEDULED" ? "green" : status === "CANCELED" ? "red" : "orange";
-            return <Tag color={color}>{status}</Tag>;
+            const s = status?.toLowerCase();
+            const color = s === "scheduled" ? "green" : s === "canceled" ? "red" : s === "completed" ? "blue" : "default";
+            return <Tag color={color}>{status?.toUpperCase()}</Tag>;
         },
     }, {
-        title: "Actions", key: "actions", width: 100, fixed: 'right', render: (_, record) => (<Popconfirm
-            title="Delete Flight"
-            description="Are you sure you want to delete this flight?"
-            onConfirm={() => handleDeleteFlight(record.flight_id)}
-            okText="Yes"
-            cancelText="No"
-        >
-            <Button danger size="small" icon={<DeleteOutlined/>} block>
-                Delete
-            </Button>
-        </Popconfirm>),
+        title: "Actions", key: "actions", width: 120, fixed: 'right', render: (_, record) => {
+            const isScheduled = record.status?.toLowerCase() === "scheduled";
+            return (
+                <Popconfirm
+                    title="Cancel Flight"
+                    description="Are you sure you want to cancel this flight? This action cannot be undone."
+                    onConfirm={() => handleCancelFlight(record.flight_id)}
+                    okText="Yes, cancel"
+                    cancelText="No"
+                    disabled={!isScheduled}
+                >
+                    <Button
+                        danger
+                        size="small"
+                        icon={<CloseCircleOutlined/>}
+                        block
+                        disabled={!isScheduled}
+                    >
+                        Cancel
+                    </Button>
+                </Popconfirm>
+            );
+        },
     },];
 
     const renderAirportOption = (code) => {

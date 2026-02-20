@@ -35,6 +35,14 @@ async def delete_flight(
     await svc.delete_flight(flight_id)
 
 
+@router.patch("/flights/{flight_id}/cancel")
+async def cancel_flight(
+    flight_id: str,
+    svc: SupervisorService = Depends(get_supervisor_service),
+):
+    return await svc.cancel_flight(flight_id)
+
+
 @router.get("/staff-users")
 async def get_staff_users(
     svc: SupervisorService = Depends(get_supervisor_service),

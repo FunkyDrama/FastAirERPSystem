@@ -11,6 +11,9 @@ class StaffTaskManager:
     def cancel_flight(self, flight_id: uuid.UUID) -> None:
         self.celery.send_task("staff.cancel_flight", args=[str(flight_id)])
 
+    def complete_flight(self, flight_id: uuid.UUID) -> None:
+        self.celery.send_task("staff.complete_flight", args=[str(flight_id)])
+
     def create_flight(self, flight_model: JsonSchema) -> None:
         self.celery.send_task("staff.create_flight", args=[flight_model])
 

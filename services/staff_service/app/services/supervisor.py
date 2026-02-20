@@ -68,9 +68,21 @@ class SupervisorService:
             self.tm.cancel_flight(flight_id)
             return {"message": "Flight deleted"}
 
+    async def cancel_flight(self, flight_id: uuid.UUID) -> dict:
+        async with self._sm() as session:
+            repo = FlightRepository(session)
+            await repo.cancel_flight(flight_id)
+            await repo.save()
+            self.tm.cancel_flight(flight_id)
+            return {"message": "Flight cancelled"}
+
     async def get_all_flights(self) -> list[FlightOut]:
         async with self._sm() as session:
             repo = FlightRepository(session)
+            completed_ids = await repo.complete_overdue_flights()
+            await repo.save()
+            for flight_id in completed_ids:
+                self.tm.complete_flight(flight_id)
             flights = await repo.get_all_flights()
             return [FlightOut.model_validate(flight) for flight in flights]
 
